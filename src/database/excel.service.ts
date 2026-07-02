@@ -66,7 +66,7 @@ export interface HistoryEntry {
 }
 
 export class ExcelService {
-  private filePath: string;
+  public filePath: string;
 
   constructor(filePath?: string) {
     this.filePath = filePath || config.excelPath;

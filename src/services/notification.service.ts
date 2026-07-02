@@ -29,17 +29,5 @@ export function printSummary(diffs: PropertyDiff[]): {
   console.log(`  ⚪ Unchanged:               ${counts.unchanged}`);
   console.log("=".repeat(50) + "\n");
 
-  // List new properties
-  const newProps = diffs.filter((d) => d.changeType === "NEW");
-  if (newProps.length > 0) {
-    logger.info("NEW PROPERTIES DETECTED:");
-    newProps.forEach((d) => {
-      console.log(
-        `  → [${d.record.source}] ${d.record.title} | ${d.record.price}€ | ${d.record.location}`
-      );
-      console.log(`    ${d.record.url}`);
-    });
-  }
-
   return counts;
 }

@@ -1,6 +1,8 @@
 import type { Scraper } from "../scrapers/base.scraper.js";
 import type { Property } from "../models/property.js";
 import { OneFixScraper } from "../scrapers/onefix/onefix.scraper.js";
+import { LCPremiumScraper } from "../scrapers/lcpremium/lcpremium.scraper.js";
+import { BidLeiloeiraScraper } from "../scrapers/bidleiloeira/bidleiloeira.scraper.js";
 import { logger } from "../utils/logger.js";
 
 /**
@@ -8,8 +10,7 @@ import { logger } from "../utils/logger.js";
  * To add a new source, simply register it here.
  */
 function getScrapers(): Scraper[] {
-  return [new OneFixScraper()];
-  // Phase 2: new LCPremiumScraper(), new BidScraper(), ...
+  return [new OneFixScraper(), new LCPremiumScraper(), new BidLeiloeiraScraper()];
 }
 
 /**

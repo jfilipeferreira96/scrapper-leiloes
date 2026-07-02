@@ -21,6 +21,7 @@ export interface Property {
   latitude?: number;
   longitude?: number;
   status?: string;
+  auctionType?: string; // e.g., "leiloes-electronicos", "negociacao-particular"
   publishedAt?: Date;
 }
 

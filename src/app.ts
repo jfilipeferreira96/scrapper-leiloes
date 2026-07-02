@@ -2,6 +2,7 @@ import { runAllScrapers } from "./services/scraper.service.js";
 import { diffProperties } from "./services/property.service.js";
 import { ExcelService } from "./database/excel.service.js";
 import { printSummary } from "./services/notification.service.js";
+import { exportViewerData } from "./viewer/export.service.js";
 import { logger } from "./utils/logger.js";
 
 async function main(): Promise<void> {
@@ -27,7 +28,10 @@ async function main(): Promise<void> {
   const isFirstRun = existing.size === 0;
   await excel.writeResults(updatedRecords, diffs, history, isFirstRun);
 
-  // 5. Print summary
+  // 5. Export viewer data (Excel -> data/data.js)
+  await exportViewerData(excel.filePath);
+
+  // 6. Print summary
   printSummary(diffs);
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
