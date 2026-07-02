@@ -5,3 +5,4 @@ data/*.xlsx
 reports/
 *.log
 plans
+**/INSTRUCTIONS.md
