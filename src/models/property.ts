@@ -1,6 +1,3 @@
-/**
- * Unified property model. All scrapers return this type.
- */
 export interface Property {
   source: string;
   externalId: string;
@@ -21,13 +18,10 @@ export interface Property {
   latitude?: number;
   longitude?: number;
   status?: string;
-  auctionType?: string; // e.g., "leiloes-electronicos", "negociacao-particular"
+  auctionType?: string;
   publishedAt?: Date;
 }
 
-/**
- * Internal record stored in the Excel DB (Property + tracking metadata).
- */
 export interface PropertyRecord extends Property {
   key: string;
   previousPrice?: number;
@@ -48,7 +42,6 @@ export interface PropertyDiff {
   previousPrice?: number;
   previousStatus?: string;
 }
-
 
 export function propertyKey(source: string, externalId: string): string {
   return `${source}_${externalId}`;

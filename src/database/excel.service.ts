@@ -5,9 +5,6 @@ import type { PropertyRecord, PropertyDiff } from "../models/property.js";
 import { config } from "../config/index.js";
 import { logger } from "../utils/logger.js";
 
-/**
- * Formats a Date to Portuguese format: DD-MM-YYYY HH:mm:ss
- */
 function formatDate(date: Date | undefined | null): string {
   if (!date) return "";
 
@@ -23,7 +20,6 @@ function formatDate(date: Date | undefined | null): string {
 }
 
 // Column definitions for the Properties sheet.
-// Order: all display columns first, then Chave and ID Externo at the end.
 const PROPERTY_COLUMNS = [
   { header: "Fonte", key: "A", width: 12 },
   { header: "Título", key: "B", width: 40 },

@@ -6,7 +6,7 @@
   "scripts": {
     "start": "tsx src/app.ts",
     "dev": "tsx watch src/app.ts",
-    "scrape": "tsx src/app.ts"
+    "clean": "rm -f data/data.js data/index.html data/properties.xlsx"
   },
   "dependencies": {
     "axios": "^1.7.0",
