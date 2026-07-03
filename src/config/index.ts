@@ -13,4 +13,10 @@ export const config = {
   // Filter properties by location. Set to true to enable location-based filtering.
   // Default: false (bring all properties) for testing purposes.
   filterByLocation: process.env.FILTER_BY_LOCATION === "true",
+  // Districts to scope the "Zonas de Interesse" filter.
+  // Comma-separated. Empty = no district restriction (exact match only).
+  zoneDistricts: (process.env.ZONE_DISTRICTS || "Aveiro,Porto")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
 };

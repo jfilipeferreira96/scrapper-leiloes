@@ -55,6 +55,9 @@ export function normalizeText(text: string): string {
 
 const NORMALIZED_LOCATIONS = LOCATIONS.map(normalizeText);
 
+/** Set of normalized locations for O(1) exact lookup. */
+const NORMALIZED_LOCATIONS_SET = new Set(NORMALIZED_LOCATIONS);
+
 /** Escapes special regex characters in a string. */
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -78,4 +81,61 @@ export function isLocationOfInterest(location: string): boolean {
     const regex = new RegExp(`\\b${escapeRegex(loc)}\\b`, "i");
     return regex.test(normalized);
   });
+}
+
+/**
+ * Checks whether a property is in a location of interest.
+ *
+ * Uses EXACT matching on parish/municipality/district (not substring),
+ * plus district scoping to eliminate false positives.
+ *
+ * - Properties KNOWN to be outside Aveiro/Porto districts are rejected.
+ * - Within those districts (or when district is unknown), any exact match
+ *   on parish, municipality, or district counts as a hit.
+ * - The `location` field (street address) uses word-boundary regex as a
+ *   fallback for free-text addresses like "Rua de Argoncilhe".
+ *
+ *   parish "Canelas", district "Porto"        → true  (Canelas, VNG)
+ *   municipality "Porto de Mós", district ""  → false (exact: "porto de mós" !== "porto")
+ *   district "Lisboa"                          → false (outside Aveiro/Porto)
+ *   location "Rua de Argoncilhe", district "" → true  (word-boundary on address)
+ */
+export function isPropertyInLocation(
+  p: {
+    location?: string;
+    district?: string;
+    municipality?: string;
+    parish?: string;
+  },
+  zoneDistricts?: string[]
+): boolean {
+  const district = normalizeText(p.district || "");
+
+  // District scope: reject properties known to be outside zone districts
+  // (only applied when zoneDistricts is provided and non-empty)
+  if (zoneDistricts && zoneDistricts.length > 0 && district) {
+    const normalizedZoneDistricts = zoneDistricts.map(normalizeText);
+    if (!normalizedZoneDistricts.includes(district)) {
+      return false;
+    }
+  }
+
+  // Exact match on structured fields
+  const parish = normalizeText(p.parish || "");
+  const muni = normalizeText(p.municipality || "");
+
+  if (parish && NORMALIZED_LOCATIONS_SET.has(parish)) return true;
+  if (muni && NORMALIZED_LOCATIONS_SET.has(muni)) return true;
+  if (district && NORMALIZED_LOCATIONS_SET.has(district)) return true;
+
+  // Word-boundary match on address field only
+  const addr = normalizeText(p.location || "");
+  if (addr) {
+    return NORMALIZED_LOCATIONS.some((loc) => {
+      const regex = new RegExp(`\\b${escapeRegex(loc)}\\b`, "i");
+      return regex.test(addr);
+    });
+  }
+
+  return false;
 }

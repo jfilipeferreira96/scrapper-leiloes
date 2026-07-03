@@ -2,7 +2,7 @@ import ExcelJS from "exceljs";
 import fs from "fs";
 import path from "path";
 import { logger } from "../utils/logger.js";
-import { LOCATIONS, isLocationOfInterest } from "../config/locations.js";
+import { LOCATIONS, isPropertyInLocation } from "../config/locations.js";
 import { config } from "../config/index.js";
 
 /**
@@ -106,11 +106,7 @@ export async function exportViewerData(excelPath: string): Promise<void> {
   // Filter all properties by the configured locations of interest
   // Only apply location filter if FILTER_BY_LOCATION is true
   const filteredProperties = config.filterByLocation
-    ? allProperties.filter((p) =>
-        isLocationOfInterest(
-          `${p.location} ${p.municipality} ${p.district} ${p.parish}`.trim()
-        )
-      )
+    ? allProperties.filter((p) => isPropertyInLocation(p, config.zoneDistricts))
     : allProperties; // When filtering is disabled, show all properties
 
   const payload = {
@@ -118,6 +114,7 @@ export async function exportViewerData(excelPath: string): Promise<void> {
     allProperties,
     filteredProperties,
     locations: LOCATIONS,
+    zoneDistricts: config.zoneDistricts,
     generatedAt: new Date().toISOString(),
   };
 

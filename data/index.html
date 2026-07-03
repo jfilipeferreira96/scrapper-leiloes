@@ -75,6 +75,18 @@
     .dark .page-btn { background: #1e293b; border-color: #334155; color: #94a3b8; }
     .dark .page-btn:hover:not(:disabled) { background: #334155; }
 
+    /* ---- Action buttons (favorite / exclude) ---- */
+    .act-btn {
+      width: 1.6rem; height: 1.6rem; border-radius: .3rem; border: none; background: transparent;
+      cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+      font-size: .85rem; color: #94a3b8; transition: all .1s; line-height: 1;
+    }
+    .act-btn:hover { background: #f1f5f9; color: #475569; }
+    .dark .act-btn:hover { background: #334155; color: #cbd5e1; }
+    .act-btn.fav-active { color: #f59e0b; }
+    .act-btn.fav-active:hover { color: #d97706; }
+    .act-btn.excl-btn:hover { color: #ef4444; }
+
     /* ---- Stat accent bar ---- */
     .stat-card { position: relative; overflow: hidden; }
     .stat-card::before {
@@ -116,6 +128,8 @@
       <button class="view-tab active" data-view="all">Todos</button>
       <button class="view-tab" data-view="new">Novos <span class="count-badge" id="newBadge">0</span></button>
       <button class="view-tab" data-view="zones">Zonas de Interesse <span class="count-badge" id="zonesBadge">0</span></button>
+      <button class="view-tab" data-view="favorites">Favoritos <span class="count-badge" id="favBadge">0</span></button>
+      <button class="view-tab" data-view="excluded">Excluídos <span class="count-badge" id="exclBadge">0</span></button>
     </div>
 
     <!-- ---- Filters ---- -->
@@ -153,7 +167,7 @@
     <!-- ---- Table ---- -->
     <section id="tableSection" class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
       <div class="overflow-x-auto">
-        <table class="w-full text-sm" style="min-width: 1150px;">
+        <table class="w-full text-sm" style="min-width: 1230px;">
           <thead>
             <tr class="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wide">
               <th class="w-8 px-2 py-3"></th>
@@ -180,6 +194,7 @@
               <th class="px-3 py-3 text-right font-semibold cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 whitespace-nowrap" data-sort="firstSeenAt">
                 Detectado <span class="sort-indicator"></span>
               </th>
+              <th class="w-20 px-2 py-3 text-center font-semibold whitespace-nowrap"></th>
             </tr>
           </thead>
           <tbody id="tableBody"></tbody>
@@ -204,6 +219,7 @@
 
   <!-- ==================== DATA + LOGIC ==================== -->
   <script src="data.js"></script>
+  <script src="filters.js"></script>
   <script>
   (function () {
     'use strict';
@@ -215,8 +231,19 @@
     var NEW_URLS = {};
     (DATA.newProperties || []).forEach(function (p) { NEW_URLS[p.url] = true; });
 
-    // Pre-compute lowercase locations for the "Zonas" tab
-    var LOCS_LOWER = (DATA.locations || []).map(function (l) { return l.toLowerCase(); });
+    // ============ FILTERS (from filters.js, user-editable) ============
+    function normText(text) {
+      return (text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+    }
+    var FILTERS = window.__FILTERS__ || { locations: [], zoneDistricts: [] };
+    var LOCS_NORM = (FILTERS.locations || []).map(normText);
+    var LOCS_SET = {};
+    LOCS_NORM.forEach(function (l) { LOCS_SET[l] = true; });
+    var LOCS_REGEX = LOCS_NORM.map(function (l)
+    {
+      return new RegExp('\\b' + l.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
+    });
+    var ZONE_DISTRICTS = (FILTERS.zoneDistricts || []).map(normText);
 
     // ============ STATE ============
     var state = {
@@ -226,6 +253,29 @@
       page: 1, pageSize: 25,
       expanded: {}
     };
+
+    // ============ FAVORITES & EXCLUDED (localStorage) ============
+    var FAV_SET = {};
+    var EXCL_SET = {};
+    try
+    {
+      JSON.parse(localStorage.getItem('leiloes_fav') || '[]').forEach(function (u) { FAV_SET[u] = true; });
+      JSON.parse(localStorage.getItem('leiloes_excl') || '[]').forEach(function (u) { EXCL_SET[u] = true; });
+    } catch (e) { /* ignore corrupt data */ }
+
+    function saveFav() { localStorage.setItem('leiloes_fav', JSON.stringify(Object.keys(FAV_SET))); }
+    function saveExcl() { localStorage.setItem('leiloes_excl', JSON.stringify(Object.keys(EXCL_SET))); }
+
+    function toggleFav(url)
+    {
+      if (FAV_SET[url]) delete FAV_SET[url]; else FAV_SET[url] = true;
+      saveFav(); updateBadges(); renderAll();
+    }
+    function toggleExcl(url)
+    {
+      if (EXCL_SET[url]) delete EXCL_SET[url]; else EXCL_SET[url] = true;
+      saveExcl(); delete state.expanded[url]; updateBadges(); renderAll();
+    }
 
     // ============ CONSTANTS ============
     var SOURCES = {
@@ -276,23 +326,61 @@
     }
 
     // ============ DATA ACCESS ============
-    function zonesFiltered() {
-      if (!LOCS_LOWER.length) return [];
+    function zonesFiltered()
+    {
+      if (!LOCS_NORM.length) return [];
       return (DATA.allProperties || []).filter(function (p) {
-        var text = ((p.location || '') + ' ' + (p.municipality || '') + ' ' +
-                    (p.district || '') + ' ' + (p.parish || '')).toLowerCase();
-        return LOCS_LOWER.some(function (loc) { return text.indexOf(loc) >= 0; });
+        var district = normText(p.district || '');
+        var parish = normText(p.parish || '');
+        var muni = normText(p.municipality || '');
+
+        // When zone districts are configured, require either:
+        // 1. Valid district match, OR
+        // 2. Exact match on parish/municipality (even without district)
+        var hasValidDistrict = !district || (ZONE_DISTRICTS.length > 0 && ZONE_DISTRICTS.indexOf(district) >= 0);
+        var hasExactMatch = (parish && LOCS_SET[parish]) || (muni && LOCS_SET[muni]);
+
+        if (ZONE_DISTRICTS.length > 0 && !hasValidDistrict && !hasExactMatch) return false;
+
+        // Exact match on structured fields
+        if (parish && LOCS_SET[parish]) return true;
+        if (muni && LOCS_SET[muni]) return true;
+        if (district && LOCS_SET[district]) return true;
+
+        // Word-boundary match on address field only
+        var addr = normText(p.location || '');
+        if (addr)
+        {
+          for (var i = 0; i < LOCS_REGEX.length; i++)
+          {
+            if (LOCS_REGEX[i].test(addr)) return true;
+          }
+        }
+        return false;
       });
     }
 
     function baseData() {
       if (state.view === 'new') return DATA.newProperties || [];
       if (state.view === 'zones') return zonesFiltered();
+      if (state.view === 'favorites')
+      {
+        return (DATA.allProperties || []).filter(function (p) { return FAV_SET[p.url]; });
+      }
+      if (state.view === 'excluded')
+      {
+        return (DATA.allProperties || []).filter(function (p) { return EXCL_SET[p.url]; });
+      }
       return DATA.allProperties || [];
     }
 
     function filtered() {
       var d = baseData();
+      // Hide excluded properties in all views except "excluded"
+      if (state.view !== 'excluded')
+      {
+        d = d.filter(function (p) { return !EXCL_SET[p.url]; });
+      }
       if (state.search) {
         var q = state.search.toLowerCase();
         d = d.filter(function (p) {
@@ -368,12 +456,14 @@
     // ============ RENDER: TABLE ============
     function renderRow(p, idx) {
       var isNew = !!NEW_URLS[p.url];
+      var isFav = !!FAV_SET[p.url];
       var isOpen = !!state.expanded[p.url];
       var sc = srcColor(p.source);
 
       var html = '<tr data-idx="' + idx + '" class="border-b border-slate-100 dark:border-slate-800/50 ' +
                  'hover:bg-slate-50 dark:hover:bg-slate-800/30 cursor-pointer transition-colors ' +
-                 (isNew ? 'bg-emerald-50/40 dark:bg-emerald-900/10' : '') + '">';
+        (isNew ? 'bg-emerald-50/40 dark:bg-emerald-900/10 ' : '') +
+        (isFav ? 'bg-amber-50/40 dark:bg-amber-900/10' : '') + '">';
 
       // Expand arrow
       html += '<td class="px-2 py-3 text-center">' +
@@ -427,6 +517,14 @@
       html += '<td class="px-3 py-3 text-right text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">' +
               fmtDate(p.firstSeenAt) + '</td>';
 
+      // Actions (favorite / exclude)
+      var favCls = isFav ? ' act-btn fav-active' : ' act-btn';
+      html += '<td class="px-2 py-3 text-center whitespace-nowrap">' +
+        '<button class="' + favCls + '" data-fav="' + esc(p.url) + '" title="Favorito">' +
+        (isFav ? '\u2605' : '\u2606') + '</button>' +
+        '<button class="act-btn excl-btn" data-excl="' + esc(p.url) + '" title="Excluir">\u2715</button>' +
+        '</td>';
+
       html += '</tr>';
       if (isOpen) html += renderExpanded(p);
       return html;
@@ -466,7 +564,7 @@
       }
 
       return '<tr class="expand-row bg-slate-50 dark:bg-slate-800/30">' +
-             '<td colspan="10" class="px-6 py-4">' +
+        '<td colspan="11" class="px-6 py-4">' +
                gallery +
                (details.length ? '<div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-sm text-slate-600 dark:text-slate-400">' +
                  details.map(function (d) { return '<span>' + esc(d) + '</span>'; }).join('<span class="text-slate-300 dark:text-slate-700">·</span>') +
@@ -585,8 +683,19 @@
 
     function renderAll() { renderStats(); renderTable(); renderPagination(); }
 
+    function updateBadges() {
+      document.getElementById('favBadge').textContent = Object.keys(FAV_SET).length;
+      document.getElementById('exclBadge').textContent = Object.keys(EXCL_SET).length;
+    }
+
     // ============ EVENTS ============
     document.getElementById('tableBody').addEventListener('click', function (e) {
+      // Favorite button
+      var favBtn = e.target.closest('[data-fav]');
+      if (favBtn) { toggleFav(favBtn.dataset.fav); return; }
+      // Exclude button
+      var exclBtn = e.target.closest('[data-excl]');
+      if (exclBtn) { toggleExcl(exclBtn.dataset.excl); return; }
       if (e.target.closest('a')) return;
       var row = e.target.closest('tr[data-idx]');
       if (!row) return;
@@ -718,6 +827,7 @@
 
       document.getElementById('newBadge').textContent = (DATA.newProperties || []).length;
       document.getElementById('zonesBadge').textContent = zonesFiltered().length;
+      updateBadges();
 
       initDark();
       populateFilters();
