@@ -2,6 +2,7 @@ node_modules/
 dist/
 data/*.xlsx
 data/data.js
+data/*.jsgi
 .env
 reports/
 *.log

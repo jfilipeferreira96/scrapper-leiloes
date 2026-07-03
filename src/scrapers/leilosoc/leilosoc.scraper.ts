@@ -2,69 +2,81 @@
  * Leilosoc Scraper.
  *
  * Handles property listings from leilosoc.com with pagination.
- * Returns properties from Portugal only.
+ * Returns properties from Portugal only (hard-coded filter in parser).
  */
 
 import type { Property } from "../../models/property.js";
 import { fetchPage, delay } from "../../utils/http.js";
+import { logger } from "../../utils/logger.js";
 import { parseLeilosocListing, parseLeilosocDetail } from "./leilosoc.parser.js";
 
 const BASE_URL = "https://leilosoc.com";
 const CATEGORY_URL = `${BASE_URL}/category/5-imoveis`;
-const MAX_PAGES = 50; // Safety limit
+const ITEMS_PER_PAGE = 48;
 
 export class LeilosocScraper {
   readonly source = "leilosoc";
 
   async scrape(): Promise<Property[]> {
     const allProperties: Property[] = [];
-    let url: string | null = `${CATEGORY_URL}?view=48&page=1`;
-    let pageCount = 0;
+    let totalPages = 1;
 
-    while (url && pageCount < MAX_PAGES) {
-      pageCount++;
+    // First page: fetch and detect total pages
+    const firstPageUrl = `${CATEGORY_URL}?view=${ITEMS_PER_PAGE}&page=1`;
+    logger.info(`[${this.source}] Scraping page 1: ${firstPageUrl}`);
+    
+    const firstHtml = await fetchPage(firstPageUrl);
+    const { properties: firstPageProperties, totalPages: detectedPages } = parseLeilosocListing(firstHtml);
+    totalPages = detectedPages;
+    
+    logger.info(`[${this.source}] Page 1: ${firstPageProperties.length} Portugal properties (total pages: ${totalPages})`);
+    
+    // Enrich first page properties
+    for (const base of firstPageProperties) {
       try {
-        console.log(`[${this.source}] Scraping page ${pageCount}: ${url}`);
-        const html = await fetchPage(url);
-        const { properties: baseProperties, nextUrl } = parseLeilosocListing(html);
+        await delay(1000);
+        const enrichedProperty = await this.enrichProperty(base);
+        allProperties.push(enrichedProperty);
+      } catch (error) {
+        logger.warn(`[${this.source}] Error enriching ${base.url}:`, error);
+        allProperties.push(base);
+      }
+    }
 
-        console.log(`[${this.source}] Found ${baseProperties.length} properties on page ${pageCount}`);
+    // Remaining pages (2 to totalPages)
+    for (let page = 2; page <= totalPages; page++) {
+      try {
+        const pageUrl = `${CATEGORY_URL}?view=${ITEMS_PER_PAGE}&page=${page}`;
+        logger.info(`[${this.source}] Scraping page ${page}/${totalPages}: ${pageUrl}`);
+        
+        const html = await fetchPage(pageUrl);
+        const { properties: pageProperties } = parseLeilosocListing(html);
+        
+        logger.info(`[${this.source}] Page ${page}: ${pageProperties.length} Portugal properties`);
 
-        // Enrich each property with detail page data
-        for (const base of baseProperties) {
+        if (pageProperties.length === 0) {
+          logger.info(`[${this.source}] No more properties, stopping`);
+          break;
+        }
+
+        // Enrich page properties
+        for (const base of pageProperties) {
           try {
-            await delay(1000); // Delay between detail page requests
+            await delay(1000);
             const enrichedProperty = await this.enrichProperty(base);
             allProperties.push(enrichedProperty);
-            console.log(`[${this.source}] Enriched: ${base.externalId} - ${base.title}`);
           } catch (error) {
-            console.error(`[${this.source}] Error enriching ${base.url}:`, error);
-            // Add base property even if enrichment fails
+            logger.warn(`[${this.source}] Error enriching ${base.url}:`, error);
             allProperties.push(base);
           }
         }
-
-        // Determine next URL
-        if (nextUrl) {
-          url = nextUrl.startsWith('http') ? nextUrl : `${BASE_URL}${nextUrl}`;
-        } else {
-          // Try to generate next page URL
-          const currentPageMatch = url.match(/page=(\d+)/);
-          if (currentPageMatch) {
-            const currentPage = parseInt(currentPageMatch[1], 10);
-            const nextPage = currentPage + 1;
-            url = `${CATEGORY_URL}?view=48&page=${nextPage}`;
-          } else {
-            url = null;
-          }
-        }
       } catch (error) {
-        console.error(`[${this.source}] Error scraping page ${pageCount}:`, error);
+        logger.warn(`[${this.source}] Error scraping page ${page}:`, error);
         break;
       }
     }
 
-    console.log(`[${this.source}] Total properties scraped: ${allProperties.length}`);
+    logger.info(`[${this.source}] Scrape complete: ${allProperties.length} properties from ${totalPages} pages`);
     return allProperties;
   }
 
