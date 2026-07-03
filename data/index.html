@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="pt" class="">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leilões — Monitor de Imóveis</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' };
+  </script>
+  <style>
+    body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+
+    /* ---- View tabs ---- */
+    .view-tab {
+      padding: .45rem .9rem; border-radius: .5rem; font-size: .82rem; font-weight: 600;
+      transition: all .12s; display: inline-flex; align-items: center; gap: .35rem;
+      border: 1px solid transparent;
+    }
+    .view-tab:not(.active) {
+      background: #fff; color: #64748b; border-color: #e2e8f0;
+    }
+    .dark .view-tab:not(.active) { background: #1e293b; color: #94a3b8; border-color: #334155; }
+    .view-tab:not(.active):hover { background: #f8fafc; border-color: #cbd5e1; }
+    .dark .view-tab:not(.active):hover { background: #334155; }
+    .view-tab.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+    .count-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 1.25rem; height: 1.25rem; padding: 0 .3rem; border-radius: 9999px;
+      font-size: .68rem; font-weight: 700;
+    }
+    .view-tab.active .count-badge { background: rgba(255,255,255,.25); color: #fff; }
+    .view-tab:not(.active) .count-badge { background: #dbeafe; color: #2563eb; }
+    .dark .view-tab:not(.active) .count-badge { background: rgba(59,130,246,.2); color: #60a5fa; }
+
+    /* ---- Sort headers ---- */
+    .sort-indicator { font-size: .6rem; opacity: .5; margin-left: .15rem; }
+
+    /* ---- Expandable row ---- */
+    .expand-row { animation: fadeIn .15s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .expand-arrow { transition: transform .12s ease-out; display: inline-block; color: #94a3b8; font-size: .65rem; }
+    .expand-arrow.open { transform: rotate(90deg); }
+
+    /* ---- Scrollbar ---- */
+    ::-webkit-scrollbar { height: 7px; width: 7px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .dark ::-webkit-scrollbar-thumb { background: #475569; }
+
+    /* ---- Text clamp ---- */
+    .clamp-2 {
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+
+    /* ---- Form inputs ---- */
+    .form-input {
+      width: 100%; padding: .45rem .65rem; border-radius: .4rem; font-size: .82rem;
+      border: 1px solid #cbd5e1; background: #fff; color: #1e293b; outline: none;
+      transition: border-color .12s, box-shadow .12s;
+    }
+    .form-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,.12); }
+    .dark .form-input { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+    .dark .form-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,.18); }
+
+    /* ---- Pagination ---- */
+    .page-btn {
+      min-width: 1.85rem; height: 1.85rem; padding: 0 .4rem; border-radius: .35rem;
+      font-size: .78rem; font-weight: 600; border: 1px solid #e2e8f0; background: #fff;
+      color: #475569; cursor: pointer; transition: all .1s;
+    }
+    .page-btn:hover:not(:disabled) { background: #f1f5f9; }
+    .page-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+    .page-btn:disabled { opacity: .35; cursor: default; }
+    .dark .page-btn { background: #1e293b; border-color: #334155; color: #94a3b8; }
+    .dark .page-btn:hover:not(:disabled) { background: #334155; }
+
+    /* ---- Stat accent bar ---- */
+    .stat-card { position: relative; overflow: hidden; }
+    .stat-card::before {
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 min-h-screen">
+
+  <!-- ==================== HEADER ==================== -->
+  <header class="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+    <div class="max-w-[1600px] mx-auto px-4 py-3 flex items-center justify-between gap-4">
+      <div>
+        <h1 class="text-base md:text-lg font-bold tracking-tight">Leilões — Monitor de Imóveis</h1>
+        <p id="generatedAt" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5"></p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="exportCsv" title="Exportar CSV"
+          class="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+          Exportar CSV
+        </button>
+        <button id="darkToggle" title="Alternar tema"
+          class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center justify-center text-sm">
+          <span class="dark:hidden">Escuro</span>
+          <span class="hidden dark:inline">Claro</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== MAIN ==================== -->
+  <main class="max-w-[1600px] mx-auto px-4 py-5 space-y-4">
+
+    <!-- ---- Stats ---- -->
+    <section id="stats" class="grid grid-cols-2 lg:grid-cols-4 gap-3"></section>
+
+    <!-- ---- View tabs ---- -->
+    <div class="flex items-center gap-2 flex-wrap">
+      <button class="view-tab active" data-view="all">Todos</button>
+      <button class="view-tab" data-view="new">Novos <span class="count-badge" id="newBadge">0</span></button>
+      <button class="view-tab" data-view="zones">Zonas de Interesse <span class="count-badge" id="zonesBadge">0</span></button>
+    </div>
+
+    <!-- ---- Filters ---- -->
+    <section class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-3">
+      <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div class="md:col-span-3 lg:col-span-2">
+          <input id="search" type="text" placeholder="Pesquisar título, morada, localização..." class="form-input">
+        </div>
+        <select id="filterSource" class="form-input"><option value="">Todas as fontes</option></select>
+        <select id="filterDistrict" class="form-input"><option value="">Todos os distritos</option></select>
+        <select id="filterStatus" class="form-input"><option value="">Todos os estados</option></select>
+      </div>
+      <div class="flex items-center gap-3 flex-wrap">
+        <div class="flex items-center gap-2">
+          <input id="priceMin" type="number" placeholder="Preço mín" class="form-input w-32">
+          <span class="text-slate-400 text-sm">—</span>
+          <input id="priceMax" type="number" placeholder="Preço máx" class="form-input w-32">
+          <span class="text-slate-400 text-sm">€</span>
+        </div>
+        <div class="flex-1"></div>
+        <p id="resultCount" class="text-sm text-slate-500 dark:text-slate-400"></p>
+        <label class="text-sm text-slate-500 dark:text-slate-400">Por página:</label>
+        <select id="pageSize" class="form-input w-auto">
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+          <option value="0">Todos</option>
+        </select>
+        <button id="clearFilters" class="text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium whitespace-nowrap">
+          Limpar filtros
+        </button>
+      </div>
+    </section>
+
+    <!-- ---- Table ---- -->
+    <section id="tableSection" class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm" style="min-width: 1150px;">
+          <thead>
+            <tr class="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wide">
+              <th class="w-8 px-2 py-3"></th>
+              <th class="px-3 py-3 text-left font-semibold cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 whitespace-nowrap" data-sort="title">
+                Imóvel <span class="sort-indicator"></span>
+              </th>
+              <th class="px-3 py-3 text-left font-semibold whitespace-nowrap">Morada</th>
+              <th class="px-3 py-3 text-right font-semibold cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 whitespace-nowrap" data-sort="price">
+                Preço <span class="sort-indicator"></span>
+              </th>
+              <th class="px-3 py-3 text-right font-semibold cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 whitespace-nowrap" data-sort="openingValue">
+                Abertura <span class="sort-indicator"></span>
+              </th>
+              <th class="px-3 py-3 text-right font-semibold cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 whitespace-nowrap" data-sort="minSaleValue">
+                Mínimo <span class="sort-indicator"></span>
+              </th>
+              <th class="px-3 py-3 text-right font-semibold cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 whitespace-nowrap" data-sort="currentBid">
+                Licitação <span class="sort-indicator"></span>
+              </th>
+              <th class="px-3 py-3 text-right font-semibold cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 whitespace-nowrap" data-sort="area">
+                Área <span class="sort-indicator"></span>
+              </th>
+              <th class="px-3 py-3 text-left font-semibold whitespace-nowrap">Estado</th>
+              <th class="px-3 py-3 text-right font-semibold cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 whitespace-nowrap" data-sort="firstSeenAt">
+                Detectado <span class="sort-indicator"></span>
+              </th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---- Pagination ---- -->
+    <section id="pagination" class="flex items-center justify-between gap-4 flex-wrap"></section>
+
+    <!-- ---- Empty state ---- -->
+    <div id="emptyState" class="hidden text-center py-16">
+      <p class="text-lg font-semibold text-slate-600 dark:text-slate-400">Sem resultados</p>
+      <p class="text-sm text-slate-400 dark:text-slate-600 mt-1">Ajusta os filtros para encontrar imóveis.</p>
+    </div>
+
+  </main>
+
+  <footer class="text-center text-xs text-slate-400 dark:text-slate-600 py-6">
+    Atalho: <kbd class="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">/</kbd> para pesquisar
+  </footer>
+
+  <!-- ==================== DATA + LOGIC ==================== -->
+  <script src="data.js"></script>
+  <script>
+  (function () {
+    'use strict';
+
+    // ============ DATA ============
+    var DATA = window.__PROPERTY_DATA__ || {
+      allProperties: [], newProperties: [], filteredProperties: [], locations: [], generatedAt: ''
+    };
+    var NEW_URLS = {};
+    (DATA.newProperties || []).forEach(function (p) { NEW_URLS[p.url] = true; });
+
+    // Pre-compute lowercase locations for the "Zonas" tab
+    var LOCS_LOWER = (DATA.locations || []).map(function (l) { return l.toLowerCase(); });
+
+    // ============ STATE ============
+    var state = {
+      view: 'all', search: '', source: '', district: '', status: '',
+      priceMin: null, priceMax: null,
+      sortKey: 'firstSeenAt', sortDir: 'desc',
+      page: 1, pageSize: 25,
+      expanded: {}
+    };
+
+    // ============ CONSTANTS ============
+    var SOURCES = {
+      onefix: '#3b82f6', bidleiloeira: '#a855f7', lcpremium: '#10b981',
+      leilosoc: '#f59e0b', avaliberica: '#f43f5e', leilostar: '#06b6d4', inlex: '#6366f1'
+    };
+
+    // ============ UTILITIES ============
+    function fmtPrice(val) {
+      if (val === null || val === undefined || val === 0) return null;
+      return new Intl.NumberFormat('pt-PT', {
+        style: 'currency', currency: 'EUR', maximumFractionDigits: 0
+      }).format(val);
+    }
+
+    function fmtPriceCell(val) {
+      var f = fmtPrice(val);
+      return f || '<span class="text-slate-300 dark:text-slate-700">—</span>';
+    }
+
+    function fmtDate(val) {
+      if (!val) return '—';
+      var d = new Date(val);
+      if (isNaN(d.getTime())) return String(val).slice(0, 10);
+      return d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+
+    function esc(text) {
+      var d = document.createElement('div');
+      d.textContent = text || '';
+      return d.innerHTML;
+    }
+
+    function badge(text, color) {
+      if (!text) return '<span class="text-slate-300 dark:text-slate-700 text-xs">—</span>';
+      return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap" ' +
+             'style="background:' + color + '1a;color:' + color + '">' + esc(text) + '</span>';
+    }
+
+    function srcColor(s) { return SOURCES[s] || '#64748b'; }
+
+    function statusColor(s) {
+      var v = (s || '').toLowerCase();
+      if (/active|abert|aceita|decorr|ativ|leil|curso|propag|licitar|compre/.test(v)) return '#10b981';
+      if (/vend|encer|suspend|cancel|retirad|terminad/.test(v)) return '#ef4444';
+      if (/scheduled|breve|eminente|futuro|proxim/.test(v)) return '#f59e0b';
+      return '#64748b';
+    }
+
+    // ============ DATA ACCESS ============
+    function zonesFiltered() {
+      if (!LOCS_LOWER.length) return [];
+      return (DATA.allProperties || []).filter(function (p) {
+        var text = ((p.location || '') + ' ' + (p.municipality || '') + ' ' +
+                    (p.district || '') + ' ' + (p.parish || '')).toLowerCase();
+        return LOCS_LOWER.some(function (loc) { return text.indexOf(loc) >= 0; });
+      });
+    }
+
+    function baseData() {
+      if (state.view === 'new') return DATA.newProperties || [];
+      if (state.view === 'zones') return zonesFiltered();
+      return DATA.allProperties || [];
+    }
+
+    function filtered() {
+      var d = baseData();
+      if (state.search) {
+        var q = state.search.toLowerCase();
+        d = d.filter(function (p) {
+          return (p.title || '').toLowerCase().indexOf(q) >= 0 ||
+                 (p.location || '').toLowerCase().indexOf(q) >= 0 ||
+                 (p.district || '').toLowerCase().indexOf(q) >= 0 ||
+                 (p.municipality || '').toLowerCase().indexOf(q) >= 0 ||
+                 (p.parish || '').toLowerCase().indexOf(q) >= 0;
+        });
+      }
+      if (state.source) d = d.filter(function (p) { return p.source === state.source; });
+      if (state.district) d = d.filter(function (p) { return p.district === state.district; });
+      if (state.status) d = d.filter(function (p) { return p.status === state.status; });
+      if (state.priceMin !== null) d = d.filter(function (p) { return p.price != null && p.price >= state.priceMin; });
+      if (state.priceMax !== null) d = d.filter(function (p) { return p.price != null && p.price <= state.priceMax; });
+      return d;
+    }
+
+    function sorted() {
+      var d = filtered().slice();
+      var key = state.sortKey, dir = state.sortDir === 'asc' ? 1 : -1;
+      d.sort(function (a, b) {
+        var va = a[key], vb = b[key];
+        if (va == null && vb == null) return 0;
+        if (va == null) return 1;
+        if (vb == null) return -1;
+        if (typeof va === 'string') va = va.toLowerCase();
+        if (typeof vb === 'string') vb = vb.toLowerCase();
+        if (va < vb) return -dir;
+        if (va > vb) return dir;
+        return 0;
+      });
+      return d;
+    }
+
+    function paged() {
+      var d = sorted();
+      if (state.pageSize === 0) return d;
+      var s = (state.page - 1) * state.pageSize;
+      return d.slice(s, s + state.pageSize);
+    }
+
+    // ============ RENDER: STATS ============
+    function renderStats() {
+      var d = baseData();
+      var wp = d.filter(function (p) { return p.price && p.price > 0; });
+      var prices = wp.map(function (p) { return p.price; });
+      var avg = prices.length ? prices.reduce(function (a, b) { return a + b; }, 0) / prices.length : 0;
+      var minP = prices.length ? Math.min.apply(null, prices) : 0;
+
+      var cards = [
+        { label: 'Imóveis', val: d.length, color: '#3b82f6' },
+        { label: 'Com preço', val: wp.length, color: '#10b981' },
+        { label: 'Preço médio', val: avg ? fmtPrice(avg) : '—', color: '#f59e0b' },
+        { label: 'Preço mínimo', val: minP ? fmtPrice(minP) : '—', color: '#a855f7' }
+      ];
+
+      document.getElementById('stats').innerHTML = cards.map(function (c) {
+        var display = typeof c.val === 'number' ? c.val.toLocaleString('pt-PT') : c.val;
+        return '<div class="stat-card bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 pl-5" ' +
+               'style="--c:' + c.color + '">' +
+               '<p class="text-xl font-bold" style="color:' + c.color + '">' + display + '</p>' +
+               '<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">' + c.label + '</p>' +
+               '</div>';
+      }).join('');
+
+      // Apply accent bar color
+      document.querySelectorAll('.stat-card').forEach(function (el) {
+        el.style.setProperty('border-left', '3px solid ' + el.style.getPropertyValue('--c'));
+      });
+    }
+
+    // ============ RENDER: TABLE ============
+    function renderRow(p, idx) {
+      var isNew = !!NEW_URLS[p.url];
+      var isOpen = !!state.expanded[p.url];
+      var sc = srcColor(p.source);
+
+      var html = '<tr data-idx="' + idx + '" class="border-b border-slate-100 dark:border-slate-800/50 ' +
+                 'hover:bg-slate-50 dark:hover:bg-slate-800/30 cursor-pointer transition-colors ' +
+                 (isNew ? 'bg-emerald-50/40 dark:bg-emerald-900/10' : '') + '">';
+
+      // Expand arrow
+      html += '<td class="px-2 py-3 text-center">' +
+              '<span class="expand-arrow' + (isOpen ? ' open' : '') + '">&#9654;</span></td>';
+
+      // Imóvel
+      html += '<td class="px-3 py-3 min-w-[250px]">' +
+              '<div class="flex items-center gap-1.5 flex-wrap">' +
+                badge(p.source, sc) +
+                (isNew ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500 text-white font-bold tracking-wide uppercase">Novo</span>' : '') +
+              '</div>' +
+              '<a href="' + esc(p.url) + '" target="_blank" rel="noopener" ' +
+              'class="block font-medium text-slate-800 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 hover:underline mt-1 clamp-2">' +
+              esc(p.title) + '</a></td>';
+
+      // Morada
+      html += '<td class="px-3 py-3 min-w-[160px] max-w-[220px]">' +
+              (p.location ? '<span class="text-sm text-slate-600 dark:text-slate-400">' + esc(p.location) + '</span>'
+                          : '<span class="text-slate-300 dark:text-slate-700 text-xs">—</span>') +
+              '</td>';
+
+      // Preço
+      html += '<td class="px-3 py-3 text-right whitespace-nowrap">';
+      if (p.price) {
+        html += '<span class="font-bold text-emerald-600 dark:text-emerald-400">' + fmtPrice(p.price) + '</span>';
+      } else {
+        html += '<span class="text-slate-400 dark:text-slate-600 italic text-xs">Sob consulta</span>';
+      }
+      html += '</td>';
+
+      // Abertura / Mínimo / Licitação
+      html += '<td class="px-3 py-3 text-right text-slate-600 dark:text-slate-400 whitespace-nowrap">' + fmtPriceCell(p.openingValue) + '</td>';
+      html += '<td class="px-3 py-3 text-right text-slate-600 dark:text-slate-400 whitespace-nowrap">' + fmtPriceCell(p.minSaleValue) + '</td>';
+      html += '<td class="px-3 py-3 text-right whitespace-nowrap">';
+      if (p.currentBid) {
+        html += '<span class="font-semibold text-blue-600 dark:text-blue-400">' + fmtPrice(p.currentBid) + '</span>';
+      } else {
+        html += '<span class="text-slate-300 dark:text-slate-700">—</span>';
+      }
+      html += '</td>';
+
+      // Área
+      html += '<td class="px-3 py-3 text-right text-slate-600 dark:text-slate-400 whitespace-nowrap">' +
+              (p.area ? p.area + ' <span class="text-xs text-slate-400">m²</span>' : '<span class="text-slate-300 dark:text-slate-700">—</span>') +
+              '</td>';
+
+      // Estado
+      html += '<td class="px-3 py-3">' + badge(p.status, statusColor(p.status)) + '</td>';
+
+      // Detectado
+      html += '<td class="px-3 py-3 text-right text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">' +
+              fmtDate(p.firstSeenAt) + '</td>';
+
+      html += '</tr>';
+      if (isOpen) html += renderExpanded(p);
+      return html;
+    }
+
+    function renderExpanded(p) {
+      var imgs = (p.images || []).slice(0, 12);
+      var moreImgs = (p.images || []).length - 12;
+      var gallery = '';
+      if (imgs.length > 0) {
+        gallery = '<div class="flex gap-2 overflow-x-auto pb-2">' +
+          imgs.map(function (img) {
+            return '<a href="' + esc(img) + '" target="_blank" rel="noopener" class="flex-shrink-0">' +
+                   '<img src="' + esc(img) + '" loading="lazy" ' +
+                   'class="w-24 h-24 object-cover rounded-lg border border-slate-200 dark:border-slate-700 hover:opacity-75 transition-opacity" ' +
+                   'onerror="this.parentElement.style.display=\'none\'" /></a>';
+          }).join('') +
+          (moreImgs > 0 ? '<span class="flex-shrink-0 w-24 h-24 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-sm text-slate-500 font-medium">+' + moreImgs + '</span>' : '') +
+          '</div>';
+      }
+
+      var locParts = [p.district, p.municipality, p.parish].filter(Boolean);
+      var details = [];
+      if (locParts.length) details.push('Localização: ' + locParts.join(', '));
+      if (p.rooms) details.push(p.rooms + (p.rooms === 1 ? ' divisão' : ' divisões'));
+      if (p.area) details.push(p.area + ' m²');
+      if (p.auctionType) details.push('Tipo: ' + p.auctionType);
+      if (p.publishedAt) details.push('Publicado: ' + fmtDate(p.publishedAt));
+      if (p.firstSeenAt) details.push('Detectado: ' + fmtDate(p.firstSeenAt));
+
+      var links = '<a href="' + esc(p.url) + '" target="_blank" rel="noopener" ' +
+                  'class="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium">Ver página original</a>';
+      if (p.latitude && p.longitude) {
+        links += '<span class="text-slate-300 dark:text-slate-700">·</span>' +
+                 '<a href="https://www.google.com/maps?q=' + p.latitude + ',' + p.longitude + '" target="_blank" rel="noopener" ' +
+                 'class="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium">Ver no mapa</a>';
+      }
+
+      return '<tr class="expand-row bg-slate-50 dark:bg-slate-800/30">' +
+             '<td colspan="10" class="px-6 py-4">' +
+               gallery +
+               (details.length ? '<div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-sm text-slate-600 dark:text-slate-400">' +
+                 details.map(function (d) { return '<span>' + esc(d) + '</span>'; }).join('<span class="text-slate-300 dark:text-slate-700">·</span>') +
+               '</div>' : '') +
+               '<div class="flex items-center gap-3 mt-3">' + links + '</div>' +
+             '</td></tr>';
+    }
+
+    function renderTable() {
+      var data = paged();
+      var total = filtered().length;
+
+      var start = total === 0 ? 0 : (state.pageSize === 0 ? 1 : (state.page - 1) * state.pageSize + 1);
+      var end = state.pageSize === 0 ? total : Math.min(state.page * state.pageSize, total);
+      document.getElementById('resultCount').textContent =
+        total === 0 ? '0 imóveis' : (start + '–' + end + ' de ' + total);
+
+      var empty = document.getElementById('emptyState');
+      var tblSec = document.getElementById('tableSection');
+      var pag = document.getElementById('pagination');
+      if (total === 0) {
+        empty.classList.remove('hidden');
+        tblSec.classList.add('hidden');
+        pag.classList.add('hidden');
+      } else {
+        empty.classList.add('hidden');
+        tblSec.classList.remove('hidden');
+        pag.classList.remove('hidden');
+      }
+
+      document.getElementById('tableBody').innerHTML =
+        data.map(function (p, i) { return renderRow(p, i); }).join('');
+
+      // Sort indicators
+      document.querySelectorAll('[data-sort]').forEach(function (th) {
+        var key = th.dataset.sort;
+        var ind = th.querySelector('.sort-indicator');
+        if (key === state.sortKey) {
+          th.classList.add('text-blue-600', 'dark:text-blue-400');
+          if (ind) ind.textContent = state.sortDir === 'asc' ? '\u25B2' : '\u25BC';
+        } else {
+          th.classList.remove('text-blue-600', 'dark:text-blue-400');
+          if (ind) ind.textContent = '';
+        }
+      });
+    }
+
+    // ============ RENDER: PAGINATION ============
+    function renderPagination() {
+      var total = filtered().length;
+      var ps = state.pageSize;
+      var totalPages = ps === 0 ? 1 : Math.ceil(total / ps);
+      var cur = state.page;
+
+      if (totalPages <= 1) {
+        document.getElementById('pagination').innerHTML =
+          '<div></div><div class="text-sm text-slate-400 dark:text-slate-600">Todos os resultados numa página</div>';
+        return;
+      }
+
+      var pages = [];
+      for (var i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= cur - 2 && i <= cur + 2)) {
+          pages.push(i);
+        } else if (pages[pages.length - 1] !== '…') {
+          pages.push('…');
+        }
+      }
+
+      var html = '<div class="flex items-center gap-1 flex-wrap">' +
+        '<button class="page-btn" data-page="' + (cur - 1) + '"' + (cur === 1 ? ' disabled' : '') + '>&#8249;</button>' +
+        pages.map(function (pg) {
+          if (pg === '…') return '<span class="px-1 text-slate-400">…</span>';
+          return '<button class="page-btn' + (pg === cur ? ' active' : '') + '" data-page="' + pg + '">' + pg + '</button>';
+        }).join('') +
+        '<button class="page-btn" data-page="' + (cur + 1) + '"' + (cur === totalPages ? ' disabled' : '') + '>&#8250;</button>' +
+        '</div><div class="text-sm text-slate-500 dark:text-slate-400">Página ' + cur + ' de ' + totalPages + '</div>';
+
+      document.getElementById('pagination').innerHTML = html;
+
+      document.querySelectorAll('.page-btn[data-page]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var pg = parseInt(btn.dataset.page, 10);
+          if (pg >= 1 && pg <= totalPages && pg !== cur) {
+            state.page = pg;
+            renderTable();
+            renderPagination();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        });
+      });
+    }
+
+    // ============ FILTERS ============
+    function populateFilters() {
+      function unique(arr, key) {
+        var seen = {};
+        var result = [];
+        arr.forEach(function (p) {
+          var v = p[key];
+          if (v && !seen[v]) { seen[v] = true; result.push(v); }
+        });
+        return result.sort();
+      }
+      function fill(id, items, allLabel) {
+        var sel = document.getElementById(id);
+        var current = sel.value;
+        sel.innerHTML = '<option value="">' + allLabel + '</option>' +
+          items.map(function (v) { return '<option value="' + esc(v) + '">' + esc(v) + '</option>'; }).join('');
+        sel.value = current;
+      }
+      fill('filterSource', unique(DATA.allProperties, 'source'), 'Todas as fontes');
+      fill('filterDistrict', unique(DATA.allProperties, 'district'), 'Todos os distritos');
+      fill('filterStatus', unique(DATA.allProperties, 'status'), 'Todos os estados');
+    }
+
+    function renderAll() { renderStats(); renderTable(); renderPagination(); }
+
+    // ============ EVENTS ============
+    document.getElementById('tableBody').addEventListener('click', function (e) {
+      if (e.target.closest('a')) return;
+      var row = e.target.closest('tr[data-idx]');
+      if (!row) return;
+      var idx = parseInt(row.dataset.idx, 10);
+      var prop = paged()[idx];
+      if (!prop) return;
+      if (state.expanded[prop.url]) delete state.expanded[prop.url];
+      else state.expanded[prop.url] = true;
+      renderTable();
+    });
+
+    document.querySelectorAll('.view-tab').forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        state.view = tab.dataset.view;
+        state.page = 1;
+        document.querySelectorAll('.view-tab').forEach(function (t) { t.classList.remove('active'); });
+        tab.classList.add('active');
+        renderAll();
+      });
+    });
+
+    var searchTimer;
+    document.getElementById('search').addEventListener('input', function (e) {
+      clearTimeout(searchTimer);
+      var val = e.target.value;
+      searchTimer = setTimeout(function () {
+        state.search = val.trim(); state.page = 1; renderAll();
+      }, 200);
+    });
+
+    document.getElementById('filterSource').addEventListener('change', function (e) {
+      state.source = e.target.value; state.page = 1; renderAll();
+    });
+    document.getElementById('filterDistrict').addEventListener('change', function (e) {
+      state.district = e.target.value; state.page = 1; renderAll();
+    });
+    document.getElementById('filterStatus').addEventListener('change', function (e) {
+      state.status = e.target.value; state.page = 1; renderAll();
+    });
+    document.getElementById('priceMin').addEventListener('input', function (e) {
+      state.priceMin = e.target.value ? Number(e.target.value) : null; state.page = 1; renderAll();
+    });
+    document.getElementById('priceMax').addEventListener('input', function (e) {
+      state.priceMax = e.target.value ? Number(e.target.value) : null; state.page = 1; renderAll();
+    });
+    document.getElementById('pageSize').addEventListener('change', function (e) {
+      state.pageSize = Number(e.target.value); state.page = 1; renderAll();
+    });
+
+    document.querySelectorAll('[data-sort]').forEach(function (th) {
+      th.addEventListener('click', function () {
+        var key = th.dataset.sort;
+        if (state.sortKey === key) state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+        else { state.sortKey = key; state.sortDir = 'asc'; }
+        renderTable();
+      });
+    });
+
+    document.getElementById('clearFilters').addEventListener('click', function () {
+      state.search = ''; state.source = ''; state.district = ''; state.status = '';
+      state.priceMin = null; state.priceMax = null; state.page = 1;
+      document.getElementById('search').value = '';
+      document.getElementById('filterSource').value = '';
+      document.getElementById('filterDistrict').value = '';
+      document.getElementById('filterStatus').value = '';
+      document.getElementById('priceMin').value = '';
+      document.getElementById('priceMax').value = '';
+      renderAll();
+    });
+
+    document.getElementById('exportCsv').addEventListener('click', function () {
+      var data = filtered();
+      var headers = ['Fonte', 'Título', 'Morada', 'Distrito', 'Concelho', 'Freguesia',
+        'Preço', 'Abertura', 'Mínimo', 'Licitação', 'Área', 'Divisões',
+        'Estado', 'Tipo', 'URL', 'Detectado'];
+      var rows = data.map(function (p) {
+        return [p.source, p.title, p.location, p.district, p.municipality, p.parish,
+          p.price || '', p.openingValue || '', p.minSaleValue || '', p.currentBid || '',
+          p.area || '', p.rooms || '', p.status, p.auctionType, p.url, p.firstSeenAt];
+      });
+      var csv = [headers].concat(rows).map(function (r) {
+        return r.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(',');
+      }).join('\n');
+      var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      var link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'leiloes_' + new Date().toISOString().slice(0, 10) + '.csv';
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+
+    // Dark mode
+    function initDark() {
+      var stored = localStorage.getItem('darkMode');
+      var prefers = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var dark = stored === 'true' || (stored === null && prefers);
+      document.documentElement.classList.toggle('dark', dark);
+    }
+    document.getElementById('darkToggle').addEventListener('click', function () {
+      var dark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('darkMode', String(dark));
+    });
+
+    // Keyboard
+    document.addEventListener('keydown', function (e) {
+      if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'SELECT') {
+        e.preventDefault();
+        document.getElementById('search').focus();
+      }
+    });
+
+    // ============ INIT ============
+    function init() {
+      if (!DATA.allProperties || DATA.allProperties.length === 0) {
+        document.getElementById('emptyState').innerHTML =
+          '<p class="text-lg font-semibold text-slate-600 dark:text-slate-400">Sem dados</p>' +
+          '<p class="text-sm text-slate-400 dark:text-slate-600 mt-1">Executa o scraper para gerar dados.</p>';
+        document.getElementById('emptyState').classList.remove('hidden');
+        document.getElementById('tableSection').classList.add('hidden');
+        document.getElementById('pagination').classList.add('hidden');
+        document.getElementById('stats').innerHTML = '';
+        return;
+      }
+
+      if (DATA.generatedAt) {
+        document.getElementById('generatedAt').textContent =
+          'Atualizado a ' + new Date(DATA.generatedAt).toLocaleString('pt-PT');
+      }
+
+      document.getElementById('newBadge').textContent = (DATA.newProperties || []).length;
+      document.getElementById('zonesBadge').textContent = zonesFiltered().length;
+
+      initDark();
+      populateFilters();
+      renderAll();
+    }
+
+    init();
+  })();
+  </script>
+</body>
+</html>

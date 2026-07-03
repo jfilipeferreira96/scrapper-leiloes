@@ -25,6 +25,9 @@ export interface ViewerProperty {
   status: string;
   url: string;
   images: string[];
+  latitude: number | null;
+  longitude: number | null;
+  auctionType: string;
   firstSeenAt: string;
   publishedAt: string;
 }
@@ -64,6 +67,9 @@ async function readSheet(
       status: v[14] ?? "",
       url: v[15] ?? "",
       images,
+      latitude: numOrNull(v[17]),
+      longitude: numOrNull(v[18]),
+      auctionType: v[24] ?? "",
       publishedAt: v[19] ?? "",
       firstSeenAt: v[20] ?? "",
     });

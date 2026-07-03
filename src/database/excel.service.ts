@@ -44,6 +44,7 @@ const PROPERTY_COLUMNS = [
   { header: "Última Verificação", key: "U", width: 22 },
   { header: "Chave", key: "V", width: 22 },
   { header: "ID Externo", key: "W", width: 15 },
+  { header: "Tipo Leilão", key: "X", width: 18 },
 ] as const;
 
 // Highlight colors
@@ -117,6 +118,7 @@ export class ExcelService {
         lastSeenAt: values[21] ? new Date(values[21]) : new Date(),
         key: values[22],
         externalId: values[23],
+        auctionType: values[24] ?? undefined,
       };
       map.set(record.key, record);
     });
@@ -192,6 +194,7 @@ export class ExcelService {
         formatDate(record.lastSeenAt),
         record.key,
         record.externalId,
+        record.auctionType ?? "",
       ]);
       // Highlighting
       const diff = diffMap.get(record.key);
