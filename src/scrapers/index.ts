@@ -3,6 +3,7 @@ import { BidLeiloeiraScraper } from "./bidleiloeira/bidleiloeira.scraper.js";
 import { LCPremiumScraper } from "./lcpremium/lcpremium.scraper.js";
 import { LeilosocScraper } from "./leilosoc/leilosoc.scraper.js";
 import { AvalibericaScraper } from "./avaliberica/avaliberica.scraper.js";
+import { LeilostarScraper } from "./leilostar/leilostar.scraper.js";
 import type { Scraper } from "./base.scraper.js";
 import { config } from "../config/index.js";
 
@@ -11,7 +12,8 @@ export const SCRAPERS: Record<string, Scraper> = {
   //bidleiloeira: new BidLeiloeiraScraper(),
   //lcpremium: new LCPremiumScraper() as Scraper,
   //leilosoc: new LeilosocScraper() as Scraper,
-  avaliberica: new AvalibericaScraper() as Scraper,
+  //avaliberica: new AvalibericaScraper() as Scraper,
+  leilostar: new LeilostarScraper() as Scraper,
 };
 
 export function getActiveScrapers(): Scraper[] {
