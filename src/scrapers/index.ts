@@ -2,6 +2,7 @@ import { OneFixScraper } from "./onefix/onefix.scraper.js";
 import { BidLeiloeiraScraper } from "./bidleiloeira/bidleiloeira.scraper.js";
 import { LCPremiumScraper } from "./lcpremium/lcpremium.scraper.js";
 import { LeilosocScraper } from "./leilosoc/leilosoc.scraper.js";
+import { AvalibericaScraper } from "./avaliberica/avaliberica.scraper.js";
 import type { Scraper } from "./base.scraper.js";
 import { config } from "../config/index.js";
 
@@ -9,7 +10,8 @@ export const SCRAPERS: Record<string, Scraper> = {
   //onefix: new OneFixScraper(),
   //bidleiloeira: new BidLeiloeiraScraper(),
   //lcpremium: new LCPremiumScraper() as Scraper,
-  leilosoc: new LeilosocScraper() as Scraper,
+  //leilosoc: new LeilosocScraper() as Scraper,
+  avaliberica: new AvalibericaScraper() as Scraper,
 };
 
 export function getActiveScrapers(): Scraper[] {

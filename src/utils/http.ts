@@ -23,14 +23,49 @@ const DEFAULT_HEADERS = {
  * scrapers share the same behavior.
  *
  * @param url - URL to fetch
+ * @param cookieStr - Optional Cookie header value (e.g., "PHPSESSID=abc123")
  * @returns Raw HTML string
  */
-export async function fetchPage(url: string): Promise<string> {
+export async function fetchPage(url: string, cookieStr?: string): Promise<string> {
+  const headers = cookieStr
+    ? { ...DEFAULT_HEADERS, Cookie: cookieStr }
+    : DEFAULT_HEADERS;
   const response = await axios.get<string>(url, {
-    headers: DEFAULT_HEADERS,
+    headers,
     timeout: config.requestTimeout,
   });
   return response.data;
+}
+
+/**
+ * Fetches a page and returns both HTML and Set-Cookie headers.
+ *
+ * Used by scrapers that need session cookies (e.g., avaliberica.pt requires
+ * PHPSESSID from the listing page to access detail pages).
+ *
+ * @param url - URL to fetch
+ * @param cookieStr - Optional Cookie header value for sending existing cookies
+ * @returns Object with HTML content and cookie string extracted from Set-Cookie
+ */
+export async function fetchPageWithCookies(
+  url: string,
+  cookieStr?: string
+): Promise<{ html: string; cookies: string }> {
+  const headers = cookieStr
+    ? { ...DEFAULT_HEADERS, Cookie: cookieStr }
+    : DEFAULT_HEADERS;
+  const response = await axios.get<string>(url, {
+    headers,
+    timeout: config.requestTimeout,
+  });
+
+  // Extract cookie pairs from Set-Cookie headers
+  const setCookies = response.headers["set-cookie"];
+  const cookies = setCookies
+    ? setCookies.map((c: string) => c.split(";")[0]).join("; ")
+    : "";
+
+  return { html: response.data, cookies };
 }
 
 /**
