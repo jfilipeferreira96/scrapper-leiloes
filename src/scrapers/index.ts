@@ -9,17 +9,23 @@ import type { Scraper } from "./base.scraper.js";
 import { config } from "../config/index.js";
 
 export const SCRAPERS: Record<string, Scraper> = {
-  //onefix: new OneFixScraper(),
-  //bidleiloeira: new BidLeiloeiraScraper(),
-  //lcpremium: new LCPremiumScraper() as Scraper,
-  //leilosoc: new LeilosocScraper() as Scraper,
-  //avaliberica: new AvalibericaScraper() as Scraper,
-  //leilostar: new LeilostarScraper() as Scraper,
+  onefix: new OneFixScraper(),
+  bidleiloeira: new BidLeiloeiraScraper(),
+  lcpremium: new LCPremiumScraper() as Scraper,
+  leilosoc: new LeilosocScraper() as Scraper,
+  avaliberica: new AvalibericaScraper() as Scraper,
+  leilostar: new LeilostarScraper() as Scraper,
   inlex: new InlexScraper() as Scraper,
 };
 
 export function getActiveScrapers(): Scraper[] {
-  const active = config.activeScrapers;
+  const active = config.activeScrapers.filter((s) => s.length > 0);
+
+  // If no scrapers specified, run all registered scrapers
+  if (active.length === 0) {
+    return Object.values(SCRAPERS);
+  }
+
   const scrapers: Scraper[] = [];
 
   for (const source of active) {
