@@ -12,9 +12,10 @@
  * - Document links: Caderneta Predial, Descrição Predial, Visita Virtual
  */
 
-import * as cheerio from 'cheerio';
-import { Property } from '../../models/property';
-import { propertyKey } from '../../models/property';
+import * as cheerio from "cheerio";
+import type { Property } from "../../models/property.js";
+import { propertyKey } from "../../models/property.js";
+import { parsePrice, extractCoordinates } from "../../utils/parser.js";
 
 /** Type alias for a Cheerio element selection (a scoped DOM fragment) */
 type CheerioEl = cheerio.Cheerio<any>;
@@ -166,7 +167,7 @@ function enrichProperty(
   if (gpsElement.length > 0) {
     const href = gpsElement.attr('href');
     if (href) {
-      const coords = extractGPSFromUrl(href);
+      const coords = extractCoordinates(href);
       if (coords) {
         enriched.latitude = coords.lat;
         enriched.longitude = coords.lon;
@@ -245,35 +246,7 @@ function extractLotNumberFromBlock(
   return match ? parseInt(match[1], 10) : null;
 }
 
-/**
- * Extract GPS coordinates from Google Maps URL
- * 
- * @param url - URL with query parameter like ?api=1&query=41.4059500,-7.4497930
- * @returns Object with lat and lon, or null if not found
- */
-function extractGPSFromUrl(url: string): { lat: number; lon: number } | null {
-  const match = url.match(/query=(-?\d+\.?\d+),\s*(-?\d+\.?\d+)/);
-  if (!match) return null;
 
-  return {
-    lat: parseFloat(match[1]),
-    lon: parseFloat(match[2])
-  };
-}
-
-/**
- * Parse a Portuguese-formatted number string (e.g., "79.050,00" → 79050)
- * 
- * Portuguese format uses '.' as thousands separator and ',' as decimal separator.
- * 
- * @param raw - Number string with . as thousands separator and , as decimal
- * @returns Parsed number, or 0 if invalid
- */
-function parsePortugueseNumber(raw: string): number {
-  const cleaned = raw.trim().replace(/\./g, '').replace(',', '.');
-  const num = parseFloat(cleaned);
-  return isNaN(num) ? 0 : num;
-}
 
 /**
  * Extract next page URL from pagination
@@ -333,7 +306,7 @@ function extractPrices(
     const minText = $minValue.text();
     const minMatch = minText.match(/([\d.,]+)\s*€/);
     if (minMatch) {
-      const value = parsePortugueseNumber(minMatch[1]);
+      const value = parsePrice(minMatch[1]);
       prop.price = value;
       prop.minSaleValue = value;
     }
@@ -351,7 +324,7 @@ function extractPrices(
     const valueMatch = valueText.match(/([\d.,]+)\s*€/);
 
     if (!valueMatch) return;
-    const value = parsePortugueseNumber(valueMatch[1]);
+    const value = parsePrice(valueMatch[1]);
 
     if (label.includes('Valor de Venda')) {
       // "Valor de Venda" is the opening/sale value — maps to both price and openingValue
@@ -373,7 +346,7 @@ function extractPrices(
     const offerText = $minOffer.text();
     const offerMatch = offerText.match(/([\d.,]+)\s*€/);
     if (offerMatch) {
-      prop.minSaleValue = parsePortugueseNumber(offerMatch[1]);
+      prop.minSaleValue = parsePrice(offerMatch[1]);
     }
   }
 }

@@ -1,39 +1,36 @@
-import type { Scraper } from "../scrapers/base.scraper.js";
+/**
+ * Scraper Service.
+ *
+ * Runs active scrapers using the central registry.
+ * Respects config.activeScrapers.
+ */
+
+import { getActiveScrapers } from "../scrapers/index.js";
 import type { Property } from "../models/property.js";
-import { OneFixScraper } from "../scrapers/onefix/onefix.scraper.js";
-import { LCPremiumScraper } from "../scrapers/lcpremium/lcpremium.scraper.js";
-import { BidLeiloeiraScraper } from "../scrapers/bidleiloeira/bidleiloeira.scraper.js";
 import { logger } from "../utils/logger.js";
 
 /**
- * Registry of available scrapers.
- * To add a new source, simply register it here.
- */
-function getScrapers(): Scraper[] {
-  return [new OneFixScraper(), new LCPremiumScraper(), new BidLeiloeiraScraper()];
-}
-
-/**
- * Runs all scrapers, normalizes and filters by location.
- * Note: Location filtering is already performed inside each scraper
- * (for OneFix, it happens after the listing and before fetching details).
+ * Run all active scrapers (based on config.activeScrapers).
+ *
+ * @returns Array of all properties collected from active scrapers
  */
 export async function runAllScrapers(): Promise<Property[]> {
-  const scrapers = getScrapers();
+  const scrapers = getActiveScrapers();
   const allProperties: Property[] = [];
+
+  logger.info(`Starting ${scrapers.length} active scrapers`);
 
   for (const scraper of scrapers) {
     try {
+      logger.info(`[scraper-service] Running ${scraper.source}...`);
       const props = await scraper.scrape();
       allProperties.push(...props);
+      logger.info(`[scraper-service] ${scraper.source}: ${props.length} properties`);
     } catch (error) {
-      logger.error(`Error in scraper ${scraper.source}:`, error);
+      logger.error(`[scraper-service] Error in ${scraper.source}:`, error);
     }
   }
 
-  logger.info(
-    `Total collected: ${allProperties.length} (already filtered by location)`
-  );
-
+  logger.info(`Total collected: ${allProperties.length} properties`);
   return allProperties;
 }

@@ -1,8 +1,12 @@
 import ExcelJS from "exceljs";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import { logger } from "../utils/logger.js";
 import { LOCATIONS, isLocationOfInterest } from "../config/locations.js";
+import { config } from "../config/index.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Simplified property shape for the HTML viewer.
@@ -97,11 +101,14 @@ export async function exportViewerData(excelPath: string): Promise<void> {
   const newProperties = await readSheet(workbook, "Novos");
 
   // Filter all properties by the configured locations of interest
-  const filteredProperties = allProperties.filter((p) =>
-    isLocationOfInterest(
-      `${p.location} ${p.municipality} ${p.district} ${p.parish}`.trim()
-    )
-  );
+  // Only apply location filter if FILTER_BY_LOCATION is true
+  const filteredProperties = config.filterByLocation
+    ? allProperties.filter((p) =>
+        isLocationOfInterest(
+          `${p.location} ${p.municipality} ${p.district} ${p.parish}`.trim()
+        )
+      )
+    : allProperties; // When filtering is disabled, show all properties
 
   const payload = {
     newProperties,
@@ -121,6 +128,16 @@ export async function exportViewerData(excelPath: string): Promise<void> {
     `window.__PROPERTY_DATA__ = ${JSON.stringify(payload, null, 2)};\n`;
 
   fs.writeFileSync(outputPath, jsContent, "utf-8");
+
+  // Copy index.html to the same directory so data.js can be loaded with relative path
+  const htmlSourcePath = path.join(__dirname, "index.html");
+  const htmlDestPath = path.join(outputDir, "index.html");
+  if (fs.existsSync(htmlSourcePath)) {
+    fs.copyFileSync(htmlSourcePath, htmlDestPath);
+    logger.info(`Viewer HTML copied: ${htmlDestPath}`);
+  } else {
+    logger.warn(`Viewer HTML not found at: ${htmlSourcePath}`);
+  }
 
   logger.info(
     `Viewer data exported: ${outputPath} ` +

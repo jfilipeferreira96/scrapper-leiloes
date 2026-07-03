@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
 import type { Property } from "../../models/property.js";
+import { parsePortugueseDate, parsePrice, extractCoordinates } from "../../utils/parser.js";
 
 export function parseBidLeiloeiraListing(html: string, auctionType: string): Property[] {
   const $ = cheerio.load(html);
@@ -64,24 +65,6 @@ function extractDates($item: cheerio.Cheerio<any>): { startDate?: Date; endDate?
   return result;
 }
 
-function parsePortugueseDate(dateText: string): Date | undefined {
-  const months: Record<string, number> = {
-    "janeiro": 0, "fevereiro": 1, "março": 2, "abril": 3,
-    "maio": 4, "junho": 5, "julho": 6, "agosto": 7,
-    "setembro": 8, "outubro": 9, "novembro": 10, "dezembro": 11
-  };
-
-  const normalized = dateText.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  const match = normalized.match(/(\d+)\s+([a-z]+)\s+(\d+)\s*-\s*(\d+):(\d+):(\d+)/);
-  
-  if (!match) return undefined;
-
-  const [, day, month, year, hours, minutes, seconds] = match;
-  const monthNum = months[month];
-  if (monthNum === undefined) return undefined;
-
-  return new Date(parseInt(year), monthNum, parseInt(day), parseInt(hours), parseInt(minutes), parseInt(seconds));
-}
 
 function extractImage($item: cheerio.Cheerio<any>): string | undefined {
   const bgStyle = $item.find(".has_bg").attr("style") || "";
@@ -144,8 +127,8 @@ export function parseBidLeiloeiraDetail(html: string, base: Property): Property 
     currentBid: priceInfo.currentBid,
     location: location || base.location,
     description: extractDescription($),
-    latitude: extractCoordinates($)?.lat,
-    longitude: extractCoordinates($)?.lng,
+    latitude: extractCoordinatesFromIframe($)?.lat,
+    longitude: extractCoordinatesFromIframe($)?.lon,
     images: extractGalleryImages($),
   };
 }
@@ -193,7 +176,7 @@ function extractPriceInfo($: cheerio.CheerioAPI): {
     if ($h4.length > 0) {
       const label = $h4.text().trim();
       const priceText = $lot.find("span").first().text().trim();
-      const value = parsePriceFromText(priceText);
+      const value = parsePrice(priceText);
       
       if (label.includes("Licitação Final")) {
         result.price = value;
@@ -215,9 +198,9 @@ function extractPriceInfo($: cheerio.CheerioAPI): {
     
     if (values.length >= 3) {
       // Grid has: Base | Mínimo | Abertura
-      const basePrice = parsePriceFromText(values.eq(0).text());
-      const minPrice = parsePriceFromText(values.eq(1).text());
-      const openingPrice = parsePriceFromText(values.eq(2).text());
+      const basePrice = parsePrice(values.eq(0).text());
+      const minPrice = parsePrice(values.eq(1).text());
+      const openingPrice = parsePrice(values.eq(2).text());
       
       result.minSaleValue = minPrice;
       result.openingValue = openingPrice;
@@ -231,21 +214,12 @@ function extractPriceInfo($: cheerio.CheerioAPI): {
 /**
  * Extracts coordinates from the Google Maps iframe.
  */
-function extractCoordinates($: cheerio.CheerioAPI): { lat: number; lng: number } | undefined {
+function extractCoordinatesFromIframe($: cheerio.CheerioAPI): { lat: number; lon: number } | undefined {
   const iframe = $("#mapa iframe");
   if (iframe.length === 0) return undefined;
 
   const src = iframe.attr("src") || "";
-  // Format: "https://maps.google.com/maps?q=41.0411458, -8.6070196&hl=pt;z=14&output=embed"
-  const match = src.match(/q=(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/);
-  if (match) {
-    const lat = parseFloat(match[1]);
-    const lng = parseFloat(match[2]);
-    if (!isNaN(lat) && !isNaN(lng)) {
-      return { lat, lng };
-    }
-  }
-  return undefined;
+  return extractCoordinates(src);
 }
 
 /**
@@ -282,11 +256,3 @@ function extractGalleryImages($: cheerio.CheerioAPI): string[] {
   return [...new Set(images)];
 }
 
-/**
- * Parses price from text (e.g., "6 352,00€" → 6352)
- */
-function parsePriceFromText(text: string): number {
-  const cleaned = text.replace(/[€$\s]/g, "").replace(/\./g, "").replace(",", ".");
-  const num = parseFloat(cleaned);
-  return isNaN(num) ? 0 : num;
-}
