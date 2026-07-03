@@ -87,6 +87,26 @@
     .act-btn.fav-active:hover { color: #d97706; }
     .act-btn.excl-btn:hover { color: #ef4444; }
 
+    /* ---- Zone config modal ---- */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.4);
+      display: flex; align-items: flex-start; justify-content: center; padding: 2rem 1rem;
+      overflow-y: auto;
+    }
+    .modal-box {
+      background: #fff; border-radius: .75rem; max-width: 700px; width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,.2); margin: auto;
+    }
+    .dark .modal-box { background: #1e293b; }
+    .modal-scroll { max-height: 65vh; overflow-y: auto; padding: 1rem 1.5rem; }
+    .zone-cb {
+      display: inline-flex; align-items: center; gap: .3rem; padding: .25rem .5rem;
+      border-radius: .3rem; cursor: pointer; font-size: .82rem; transition: background .1s;
+    }
+    .zone-cb:hover { background: #f1f5f9; }
+    .dark .zone-cb:hover { background: #334155; }
+    .zone-cb input { accent-color: #2563eb; }
+
     /* ---- Stat accent bar ---- */
     .stat-card { position: relative; overflow: hidden; }
     .stat-card::before {
@@ -128,6 +148,11 @@
       <button class="view-tab active" data-view="all">Todos</button>
       <button class="view-tab" data-view="new">Novos <span class="count-badge" id="newBadge">0</span></button>
       <button class="view-tab" data-view="zones">Zonas de Interesse <span class="count-badge" id="zonesBadge">0</span></button>
+      <button id="zoneConfigBtn"
+        class="text-sm text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition px-2 py-1.5"
+        title="Configurar zonas">
+        Configurar
+      </button>
       <button class="view-tab" data-view="favorites">Favoritos <span class="count-badge" id="favBadge">0</span></button>
       <button class="view-tab" data-view="excluded">Excluídos <span class="count-badge" id="exclBadge">0</span></button>
     </div>
@@ -213,6 +238,32 @@
 
   </main>
 
+  <!-- ==================== ZONE CONFIG MODAL ==================== -->
+  <div id="zoneModal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-700">
+        <h2 class="font-bold text-base">Configurar Zonas de Interesse</h2>
+        <button id="zoneModalClose"
+          class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg leading-none">&times;</button>
+      </div>
+      <div class="modal-scroll space-y-4">
+        <div id="zoneModalContent"></div>
+      </div>
+      <div
+        class="flex items-center justify-between gap-3 px-5 py-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 rounded-b-xl">
+        <div class="flex gap-2">
+          <button id="zoneSelectAll"
+            class="text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium">Selecionar tudo</button>
+          <span class="text-slate-300 dark:text-slate-700">|</span>
+          <button id="zoneClearAll"
+            class="text-sm text-slate-500 hover:text-red-500 hover:underline font-medium">Limpar</button>
+        </div>
+        <button id="zoneSave"
+          class="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition">Guardar</button>
+      </div>
+    </div>
+  </div>
+
   <footer class="text-center text-xs text-slate-400 dark:text-slate-600 py-6">
     Atalho: <kbd class="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">/</kbd> para pesquisar
   </footer>
@@ -231,19 +282,50 @@
     var NEW_URLS = {};
     (DATA.newProperties || []).forEach(function (p) { NEW_URLS[p.url] = true; });
 
-    // ============ FILTERS (from filters.js, user-editable) ============
+    // ============ FILTERS (from filters.js) ============
     function normText(text) {
       return (text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
     }
-    var FILTERS = window.__FILTERS__ || { locations: [], zoneDistricts: [] };
-    var LOCS_NORM = (FILTERS.locations || []).map(normText);
-    var LOCS_SET = {};
-    LOCS_NORM.forEach(function (l) { LOCS_SET[l] = true; });
-    var LOCS_REGEX = LOCS_NORM.map(function (l)
+    var FILTERS = window.__FILTERS__ || { districts: [], groups: [] };
+    // Flatten all locations from groups
+    var ALL_LOCATIONS = [];
+    (FILTERS.groups || []).forEach(function (g)
     {
-      return new RegExp('\\b' + l.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
+      (g.locations || []).forEach(function (l) { ALL_LOCATIONS.push(l); });
     });
-    var ZONE_DISTRICTS = (FILTERS.zoneDistricts || []).map(normText);
+    // Load zone selections from localStorage (null = use all as default)
+    var zoneSel = { locations: null, districts: null };
+    try
+    {
+      var saved = JSON.parse(localStorage.getItem('leiloes_zone_sel') || 'null');
+      if (saved) zoneSel = saved;
+    } catch (e) { }
+
+    function getActiveLocations()
+    {
+      if (!zoneSel.locations) return ALL_LOCATIONS.slice();
+      return ALL_LOCATIONS.filter(function (l) { return zoneSel.locations.indexOf(l) >= 0; });
+    }
+    function getActiveDistricts()
+    {
+      if (!zoneSel.districts) return (FILTERS.districts || []).slice();
+      return (FILTERS.districts || []).filter(function (d) { return zoneSel.districts.indexOf(d) >= 0; });
+    }
+
+    // Pre-computed sets (rebuilt when selections change)
+    var LOCS_NORM, LOCS_SET, LOCS_REGEX, ZONE_DISTRICTS;
+    function rebuildZoneSets()
+    {
+      LOCS_NORM = getActiveLocations().map(normText);
+      LOCS_SET = {};
+      LOCS_NORM.forEach(function (l) { LOCS_SET[l] = true; });
+      LOCS_REGEX = LOCS_NORM.map(function (l)
+      {
+        return new RegExp('\\b' + l.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
+      });
+      ZONE_DISTRICTS = getActiveDistricts().map(normText);
+    }
+    rebuildZoneSets();
 
     // ============ STATE ============
     var state = {
@@ -688,6 +770,86 @@
       document.getElementById('exclBadge').textContent = Object.keys(EXCL_SET).length;
     }
 
+    // ============ ZONE CONFIG MODAL ============
+    function openZoneModal()
+    {
+      renderZoneCheckboxes();
+      document.getElementById('zoneModal').classList.remove('hidden');
+    }
+    function closeZoneModal()
+    {
+      document.getElementById('zoneModal').classList.add('hidden');
+    }
+
+    function renderZoneCheckboxes()
+    {
+      var selLocs = getActiveLocations();
+      var selDist = getActiveDistricts();
+      var html = '';
+
+      // Districts
+      html += '<div class="mb-4"><p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Distritos</p>';
+      html += '<div class="flex flex-wrap gap-1">';
+      (FILTERS.districts || []).forEach(function (d)
+      {
+        var checked = selDist.indexOf(d) >= 0 ? 'checked' : '';
+        html += '<label class="zone-cb"><input type="checkbox" class="cb-district" value="' + esc(d) + '" ' + checked + '> ' + esc(d) + '</label>';
+      });
+      html += '</div></div>';
+
+      // Location groups
+      (FILTERS.groups || []).forEach(function (g)
+      {
+        html += '<div class="mb-4">';
+        html += '<div class="flex items-center justify-between mb-1.5">';
+        html += '<p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">' + esc(g.name) + '</p>';
+        html += '<button class="text-xs text-blue-500 hover:underline group-toggle" data-group="' + esc(g.name) + '">Alternar grupo</button>';
+        html += '</div>';
+        html += '<div class="flex flex-wrap gap-1">';
+        (g.locations || []).forEach(function (l)
+        {
+          var checked = selLocs.indexOf(l) >= 0 ? 'checked' : '';
+          html += '<label class="zone-cb"><input type="checkbox" class="cb-location" value="' + esc(l) + '" ' + checked + '> ' + esc(l) + '</label>';
+        });
+        html += '</div></div>';
+      });
+
+      document.getElementById('zoneModalContent').innerHTML = html;
+
+      // Group toggle buttons
+      document.querySelectorAll('.group-toggle').forEach(function (btn)
+      {
+        btn.addEventListener('click', function ()
+        {
+          var groupName = btn.dataset.group;
+          var group = (FILTERS.groups || []).find(function (g) { return g.name === groupName; });
+          if (!group) return;
+          var cbs = document.querySelectorAll('.cb-location');
+          var groupCbs = [];
+          group.locations.forEach(function (l)
+          {
+            cbs.forEach(function (cb) { if (cb.value === l) groupCbs.push(cb); });
+          });
+          var allChecked = groupCbs.every(function (cb) { return cb.checked; });
+          groupCbs.forEach(function (cb) { cb.checked = !allChecked; });
+        });
+      });
+    }
+
+    function saveZoneConfig()
+    {
+      var districts = [];
+      document.querySelectorAll('.cb-district:checked').forEach(function (cb) { districts.push(cb.value); });
+      var locations = [];
+      document.querySelectorAll('.cb-location:checked').forEach(function (cb) { locations.push(cb.value); });
+      zoneSel = { locations: locations, districts: districts };
+      localStorage.setItem('leiloes_zone_sel', JSON.stringify(zoneSel));
+      rebuildZoneSets();
+      document.getElementById('zonesBadge').textContent = zonesFiltered().length;
+      closeZoneModal();
+      renderAll();
+    }
+
     // ============ EVENTS ============
     document.getElementById('tableBody').addEventListener('click', function (e) {
       // Favorite button
@@ -805,6 +967,28 @@
         e.preventDefault();
         document.getElementById('search').focus();
       }
+      if (e.key === 'Escape')
+      {
+        var modal = document.getElementById('zoneModal');
+        if (!modal.classList.contains('hidden')) closeZoneModal();
+      }
+    });
+
+    // Zone config modal
+    document.getElementById('zoneConfigBtn').addEventListener('click', openZoneModal);
+    document.getElementById('zoneModalClose').addEventListener('click', closeZoneModal);
+    document.getElementById('zoneSave').addEventListener('click', saveZoneConfig);
+    document.getElementById('zoneSelectAll').addEventListener('click', function ()
+    {
+      document.querySelectorAll('#zoneModalContent input[type=checkbox]').forEach(function (cb) { cb.checked = true; });
+    });
+    document.getElementById('zoneClearAll').addEventListener('click', function ()
+    {
+      document.querySelectorAll('#zoneModalContent input[type=checkbox]').forEach(function (cb) { cb.checked = false; });
+    });
+    document.getElementById('zoneModal').addEventListener('click', function (e)
+    {
+      if (e.target === this) closeZoneModal();
     });
 
     // ============ INIT ============
