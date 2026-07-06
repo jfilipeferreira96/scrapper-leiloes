@@ -108,10 +108,70 @@
     .zone-cb input { accent-color: #2563eb; }
 
     /* ---- Stat accent bar ---- */
-    .stat-card { position: relative; overflow: hidden; }
+    .stat-card { position: relative; overflow: hidden; transition: transform .12s, box-shadow .12s; }
+    .stat-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.06); }
     .stat-card::before {
       content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
     }
+
+    /* ---- Sticky table header ---- */
+    .sticky-thead th {
+      position: sticky; top: 0; z-index: 10;
+      background: #f8fafc;
+    }
+    .dark .sticky-thead th { background: #1e293b; }
+
+    /* ---- Active filter chips ---- */
+    .filter-chip {
+      display: inline-flex; align-items: center; gap: .3rem;
+      padding: .2rem .5rem .2rem .65rem; border-radius: 9999px;
+      font-size: .75rem; font-weight: 600; cursor: pointer;
+      background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe;
+      transition: all .1s;
+    }
+    .filter-chip:hover { background: #dbeafe; border-color: #93c5fd; }
+    .dark .filter-chip { background: rgba(59,130,246,.15); color: #60a5fa; border-color: rgba(59,130,246,.3); }
+    .dark .filter-chip:hover { background: rgba(59,130,246,.25); }
+    .filter-chip .chip-x { font-size: .9rem; line-height: 1; opacity: .6; }
+    .filter-chip:hover .chip-x { opacity: 1; }
+
+    /* ---- Price preset buttons ---- */
+    .price-preset {
+      padding: .25rem .6rem; border-radius: .35rem; font-size: .75rem; font-weight: 600;
+      border: 1px solid #e2e8f0; background: #fff; color: #64748b; cursor: pointer;
+      transition: all .1s; white-space: nowrap;
+    }
+    .price-preset:hover { border-color: #93c5fd; color: #2563eb; background: #eff6ff; }
+    .price-preset.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+    .dark .price-preset { background: #1e293b; border-color: #334155; color: #94a3b8; }
+    .dark .price-preset:hover { border-color: rgba(59,130,246,.4); color: #60a5fa; background: rgba(59,130,246,.1); }
+    .dark .price-preset.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+
+    /* ---- Source legend ---- */
+    .legend-dot {
+      display: inline-block; width: .55rem; height: .55rem; border-radius: 9999px;
+      margin-right: .25rem; vertical-align: middle;
+    }
+
+    /* ---- Zone modal improvements ---- */
+    .zone-group-card {
+      border: 1px solid #e2e8f0; border-radius: .5rem; padding: .75rem;
+      background: #f8fafc;
+    }
+    .dark .zone-group-card { background: #0f172a; border-color: #334155; }
+    .zone-cb {
+      display: inline-flex; align-items: center; gap: .3rem; padding: .25rem .55rem;
+      border-radius: .35rem; cursor: pointer; font-size: .8rem; transition: all .1s;
+      border: 1px solid transparent;
+    }
+    .zone-cb:hover { background: #eff6ff; border-color: #bfdbfe; }
+    .dark .zone-cb:hover { background: rgba(59,130,246,.1); border-color: rgba(59,130,246,.2); }
+    .zone-cb input { accent-color: #2563eb; width: .85rem; height: .85rem; }
+    .zone-cb:has(input:checked) { background: #eff6ff; border-color: #93c5fd; font-weight: 600; }
+    .dark .zone-cb:has(input:checked) { background: rgba(59,130,246,.12); border-color: rgba(59,130,246,.3); }
+
+    /* ---- Smooth row transitions ---- */
+    tbody tr { transition: background-color .08s; }
   </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 min-h-screen">
@@ -125,13 +185,14 @@
       </div>
       <div class="flex items-center gap-2">
         <button id="exportCsv" title="Exportar CSV"
-          class="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
-          Exportar CSV
+          class="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+          CSV
         </button>
         <button id="darkToggle" title="Alternar tema"
-          class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center justify-center text-sm">
-          <span class="dark:hidden">Escuro</span>
-          <span class="hidden dark:inline">Claro</span>
+          class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center justify-center">
+          <svg class="w-4 h-4 dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+          <svg class="w-4 h-4 hidden dark:inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
         </button>
       </div>
     </div>
@@ -149,9 +210,9 @@
       <button class="view-tab" data-view="new">Novos <span class="count-badge" id="newBadge">0</span></button>
       <button class="view-tab" data-view="zones">Zonas de Interesse <span class="count-badge" id="zonesBadge">0</span></button>
       <button id="zoneConfigBtn"
-        class="text-sm text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition px-2 py-1.5"
-        title="Configurar zonas">
-        Configurar
+        class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center justify-center text-slate-500 hover:text-blue-600 dark:hover:text-blue-400"
+        title="Configurar zonas de interesse">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
       </button>
       <button class="view-tab" data-view="favorites">Favoritos <span class="count-badge" id="favBadge">0</span></button>
       <button class="view-tab" data-view="excluded">Excluídos <span class="count-badge" id="exclBadge">0</span></button>
@@ -167,25 +228,39 @@
         <select id="filterDistrict" class="form-input"><option value="">Todos os distritos</option></select>
         <select id="filterStatus" class="form-input"><option value="">Todos os estados</option></select>
       </div>
-      <div class="flex items-center gap-3 flex-wrap">
-        <div class="flex items-center gap-2">
-          <input id="priceMin" type="number" placeholder="Preço mín" class="form-input w-32">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="text-xs font-semibold text-slate-400 dark:text-slate-600 uppercase tracking-wide mr-1">Preço</span>
+        <button class="price-preset" data-pmin="" data-pmax="50000">&lt; 50k</button>
+        <button class="price-preset" data-pmin="50000" data-pmax="100000">50–100k</button>
+        <button class="price-preset" data-pmin="100000" data-pmax="200000">100–200k</button>
+        <button class="price-preset" data-pmin="200000" data-pmax="500000">200–500k</button>
+        <button class="price-preset" data-pmin="500000" data-pmax="">&gt; 500k</button>
+        <div class="flex items-center gap-1.5 ml-2">
+          <input id="priceMin" type="number" placeholder="mín" class="form-input w-24">
           <span class="text-slate-400 text-sm">—</span>
-          <input id="priceMax" type="number" placeholder="Preço máx" class="form-input w-32">
+          <input id="priceMax" type="number" placeholder="máx" class="form-input w-24">
           <span class="text-slate-400 text-sm">€</span>
         </div>
-        <div class="flex-1"></div>
-        <p id="resultCount" class="text-sm text-slate-500 dark:text-slate-400"></p>
-        <label class="text-sm text-slate-500 dark:text-slate-400">Por página:</label>
-        <select id="pageSize" class="form-input w-auto">
-          <option value="25">25</option>
-          <option value="50">50</option>
-          <option value="100">100</option>
-          <option value="0">Todos</option>
-        </select>
-        <button id="clearFilters" class="text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium whitespace-nowrap">
-          Limpar filtros
-        </button>
+      </div>
+      <!-- Active filter chips -->
+      <div id="filterChips" class="flex items-center gap-2 flex-wrap min-h-[0px]"></div>
+      <!-- Source legend + controls -->
+      <div class="flex items-center justify-between gap-3 flex-wrap pt-1 border-t border-slate-100 dark:border-slate-800">
+        <div id="sourceLegend" class="flex items-center gap-3 flex-wrap text-xs text-slate-500 dark:text-slate-400"></div>
+        <div class="flex items-center gap-3 flex-wrap">
+          <p id="resultCount" class="text-sm text-slate-500 dark:text-slate-400"></p>
+          <label class="text-sm text-slate-500 dark:text-slate-400">Por página:</label>
+          <select id="pageSize" class="form-input w-auto">
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="0">Todos</option>
+          </select>
+          <button id="clearFilters"
+            class="text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium whitespace-nowrap">
+            Limpar filtros
+          </button>
+          </div>
       </div>
     </section>
 
@@ -242,11 +317,14 @@
   <div id="zoneModal" class="modal-overlay hidden">
     <div class="modal-box">
       <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-700">
-        <h2 class="font-bold text-base">Configurar Zonas de Interesse</h2>
+        <div>
+          <h2 class="font-bold text-base">Configurar Zonas de Interesse</h2>
+          <p id="zoneModalSummary" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5"></p>
+          </div>
         <button id="zoneModalClose"
-          class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg leading-none">&times;</button>
+          class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl leading-none w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition">&times;</button>
       </div>
-      <div class="modal-scroll space-y-4">
+      <div class="modal-scroll space-y-3">
         <div id="zoneModalContent"></div>
       </div>
       <div
@@ -259,7 +337,7 @@
             class="text-sm text-slate-500 hover:text-red-500 hover:underline font-medium">Limpar</button>
         </div>
         <button id="zoneSave"
-          class="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition">Guardar</button>
+          class="px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition shadow-sm">Guardar</button>
       </div>
     </div>
   </div>
@@ -507,25 +585,28 @@
 
     // ============ RENDER: STATS ============
     function renderStats() {
+      var all = DATA.allProperties || [];
       var d = baseData();
       var wp = d.filter(function (p) { return p.price && p.price > 0; });
       var prices = wp.map(function (p) { return p.price; });
       var avg = prices.length ? prices.reduce(function (a, b) { return a + b; }, 0) / prices.length : 0;
       var minP = prices.length ? Math.min.apply(null, prices) : 0;
+      var maxP = prices.length ? Math.max.apply(null, prices) : 0;
 
       var cards = [
-        { label: 'Imóveis', val: d.length, color: '#3b82f6' },
-        { label: 'Com preço', val: wp.length, color: '#10b981' },
-        { label: 'Preço médio', val: avg ? fmtPrice(avg) : '—', color: '#f59e0b' },
-        { label: 'Preço mínimo', val: minP ? fmtPrice(minP) : '—', color: '#a855f7' }
+        { label: 'Imóveis', val: d.length, sub: (DATA.newProperties || []).length + ' novos', color: '#3b82f6' },
+        { label: 'Com preço', val: wp.length, sub: d.length - wp.length + ' sem preço', color: '#10b981' },
+        { label: 'Preço médio', val: avg ? fmtPrice(avg) : '—', sub: minP ? 'min ' + fmtPrice(minP) : '', color: '#f59e0b' },
+        { label: 'Preço máximo', val: maxP ? fmtPrice(maxP) : '—', sub: zonesFiltered().length + ' na zona', color: '#a855f7' }
       ];
 
       document.getElementById('stats').innerHTML = cards.map(function (c) {
         var display = typeof c.val === 'number' ? c.val.toLocaleString('pt-PT') : c.val;
         return '<div class="stat-card bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 pl-5" ' +
                'style="--c:' + c.color + '">' +
-               '<p class="text-xl font-bold" style="color:' + c.color + '">' + display + '</p>' +
-               '<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">' + c.label + '</p>' +
+          '<p class="text-2xl font-bold tracking-tight" style="color:' + c.color + '">' + display + '</p>' +
+          '<p class="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">' + c.label + '</p>' +
+          (c.sub ? '<p class="text-[11px] text-slate-400 dark:text-slate-600 mt-0.5">' + c.sub + '</p>' : '') +
                '</div>';
       }).join('');
 
@@ -763,7 +844,72 @@
       fill('filterStatus', unique(DATA.allProperties, 'status'), 'Todos os estados');
     }
 
-    function renderAll() { renderStats(); renderTable(); renderPagination(); }
+    function renderAll() { renderStats(); renderTable(); renderPagination(); renderFilterChips(); }
+
+    // ============ ACTIVE FILTER CHIPS ============
+    function renderFilterChips()
+    {
+      var chips = [];
+      if (state.search) chips.push({ label: '"' + state.search + '"', clear: function () { state.search = ''; document.getElementById('search').value = ''; } });
+      if (state.source) chips.push({ label: state.source, clear: function () { state.source = ''; document.getElementById('filterSource').value = ''; } });
+      if (state.district) chips.push({ label: state.district, clear: function () { state.district = ''; document.getElementById('filterDistrict').value = ''; } });
+      if (state.status) chips.push({ label: state.status, clear: function () { state.status = ''; document.getElementById('filterStatus').value = ''; } });
+      if (state.priceMin !== null) chips.push({ label: '\u2265 ' + (fmtPrice(state.priceMin) || (state.priceMin + ' €')), clear: function () { state.priceMin = null; document.getElementById('priceMin').value = ''; clearPricePresets(); } });
+      if (state.priceMax !== null) chips.push({ label: '\u2264 ' + (fmtPrice(state.priceMax) || (state.priceMax + ' €')), clear: function () { state.priceMax = null; document.getElementById('priceMax').value = ''; clearPricePresets(); } });
+
+      var container = document.getElementById('filterChips');
+      if (!chips.length) { container.innerHTML = ''; container.style.minHeight = '0'; return; }
+      container.style.minHeight = '1.5rem';
+      container.innerHTML = chips.map(function (c, i)
+      {
+        return '<span class="filter-chip" data-chip="' + i + '">' + esc(c.label) + '<span class="chip-x">&times;</span></span>';
+      }).join('');
+
+      container.querySelectorAll('.filter-chip').forEach(function (el)
+      {
+        el.addEventListener('click', function ()
+        {
+          var idx = parseInt(el.dataset.chip, 10);
+          chips[idx].clear();
+          state.page = 1;
+          renderAll();
+        });
+      });
+    }
+
+    // ============ SOURCE LEGEND ============
+    function renderSourceLegend()
+    {
+      var counts = {};
+      (DATA.allProperties || []).forEach(function (p)
+      {
+        counts[p.source] = (counts[p.source] || 0) + 1;
+      });
+      var html = Object.keys(SOURCES).map(function (src)
+      {
+        var count = counts[src] || 0;
+        if (!count) return '';
+        return '<span class="inline-flex items-center"><span class="legend-dot" style="background:' + SOURCES[src] + '"></span>' +
+          esc(src) + ' <span class="text-slate-400 dark:text-slate-600 ml-0.5">(' + count + ')</span></span>';
+      }).join('');
+      document.getElementById('sourceLegend').innerHTML = html;
+    }
+
+    // ============ PRICE PRESETS ============
+    function clearPricePresets()
+    {
+      document.querySelectorAll('.price-preset').forEach(function (b) { b.classList.remove('active'); });
+    }
+    function syncPricePresets()
+    {
+      clearPricePresets();
+      document.querySelectorAll('.price-preset').forEach(function (b)
+      {
+        var pmin = b.dataset.pmin ? Number(b.dataset.pmin) : null;
+        var pmax = b.dataset.pmax ? Number(b.dataset.pmax) : null;
+        if (state.priceMin === pmin && state.priceMax === pmax) b.classList.add('active');
+      });
+    }
 
     function updateBadges() {
       document.getElementById('favBadge').textContent = Object.keys(FAV_SET).length;
@@ -788,7 +934,7 @@
       var html = '';
 
       // Districts
-      html += '<div class="mb-4"><p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Distritos</p>';
+      html += '<div class="zone-group-card mb-3"><p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Distritos</p>';
       html += '<div class="flex flex-wrap gap-1">';
       (FILTERS.districts || []).forEach(function (d)
       {
@@ -800,10 +946,12 @@
       // Location groups
       (FILTERS.groups || []).forEach(function (g)
       {
-        html += '<div class="mb-4">';
-        html += '<div class="flex items-center justify-between mb-1.5">';
-        html += '<p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">' + esc(g.name) + '</p>';
-        html += '<button class="text-xs text-blue-500 hover:underline group-toggle" data-group="' + esc(g.name) + '">Alternar grupo</button>';
+        var checkedCount = g.locations.filter(function (l) { return selLocs.indexOf(l) >= 0; }).length;
+        var allChecked = checkedCount === g.locations.length;
+        html += '<div class="zone-group-card mb-3">';
+        html += '<div class="flex items-center justify-between mb-2">';
+        html += '<p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">' + esc(g.name) + ' <span class="text-slate-400 dark:text-slate-600 normal-case font-normal">(' + checkedCount + '/' + g.locations.length + ')</span></p>';
+        html += '<button class="text-xs text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 hover:underline group-toggle font-medium" data-group="' + esc(g.name) + '">' + (allChecked ? 'Desselecionar' : 'Selecionar') + ' grupo</button>';
         html += '</div>';
         html += '<div class="flex flex-wrap gap-1">';
         (g.locations || []).forEach(function (l)
@@ -815,6 +963,13 @@
       });
 
       document.getElementById('zoneModalContent').innerHTML = html;
+      updateZoneModalSummary();
+
+      // Live update on checkbox change
+      document.querySelectorAll('#zoneModalContent input[type=checkbox]').forEach(function (cb)
+      {
+        cb.addEventListener('change', updateZoneModalSummary);
+      });
 
       // Group toggle buttons
       document.querySelectorAll('.group-toggle').forEach(function (btn)
@@ -832,8 +987,21 @@
           });
           var allChecked = groupCbs.every(function (cb) { return cb.checked; });
           groupCbs.forEach(function (cb) { cb.checked = !allChecked; });
+          updateZoneModalSummary();
         });
       });
+    }
+
+    function updateZoneModalSummary()
+    {
+      var totalLocs = document.querySelectorAll('.cb-location').length;
+      var checkedLocs = document.querySelectorAll('.cb-location:checked').length;
+      var totalDist = document.querySelectorAll('.cb-district').length;
+      var checkedDist = document.querySelectorAll('.cb-district:checked').length;
+      var parts = [];
+      if (totalLocs) parts.push(checkedLocs + '/' + totalLocs + ' localizações');
+      if (totalDist) parts.push(checkedDist + '/' + totalDist + ' distritos');
+      document.getElementById('zoneModalSummary').textContent = parts.join(' · ') || 'Nenhuma zona selecionada';
     }
 
     function saveZoneConfig()
@@ -898,10 +1066,31 @@
       state.status = e.target.value; state.page = 1; renderAll();
     });
     document.getElementById('priceMin').addEventListener('input', function (e) {
-      state.priceMin = e.target.value ? Number(e.target.value) : null; state.page = 1; renderAll();
+      state.priceMin = e.target.value ? Number(e.target.value) : null; state.page = 1; syncPricePresets(); renderAll();
     });
     document.getElementById('priceMax').addEventListener('input', function (e) {
-      state.priceMax = e.target.value ? Number(e.target.value) : null; state.page = 1; renderAll();
+      state.priceMax = e.target.value ? Number(e.target.value) : null; state.page = 1; syncPricePresets(); renderAll();
+    });
+    document.querySelectorAll('.price-preset').forEach(function (btn)
+    {
+      btn.addEventListener('click', function ()
+      {
+        var pmin = btn.dataset.pmin ? Number(btn.dataset.pmin) : null;
+        var pmax = btn.dataset.pmax ? Number(btn.dataset.pmax) : null;
+        // Toggle off if already active
+        if (state.priceMin === pmin && state.priceMax === pmax)
+        {
+          state.priceMin = null; state.priceMax = null;
+          document.getElementById('priceMin').value = '';
+          document.getElementById('priceMax').value = '';
+        } else
+        {
+          state.priceMin = pmin; state.priceMax = pmax;
+          document.getElementById('priceMin').value = pmin !== null ? pmin : '';
+          document.getElementById('priceMax').value = pmax !== null ? pmax : '';
+        }
+        state.page = 1; syncPricePresets(); renderAll();
+      });
     });
     document.getElementById('pageSize').addEventListener('change', function (e) {
       state.pageSize = Number(e.target.value); state.page = 1; renderAll();
@@ -925,6 +1114,7 @@
       document.getElementById('filterStatus').value = '';
       document.getElementById('priceMin').value = '';
       document.getElementById('priceMax').value = '';
+      clearPricePresets();
       renderAll();
     });
 
@@ -1015,6 +1205,7 @@
 
       initDark();
       populateFilters();
+      renderSourceLegend();
       renderAll();
     }
 
