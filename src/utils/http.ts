@@ -69,6 +69,47 @@ export async function fetchPageWithCookies(
 }
 
 /**
+ * POST form data to a page and return HTML + Set-Cookie headers.
+ *
+ * Used by scrapers that need to submit filter forms and capture a session
+ * cookie (e.g., leiloeiradolena.com uses POST to initialise the listing
+ * session, then GET for pagination).
+ *
+ * @param url - URL to POST to
+ * @param formData - Object of form field name → value pairs
+ * @param cookieStr - Optional Cookie header value for sending existing cookies
+ * @returns Object with HTML content and cookie string extracted from Set-Cookie
+ */
+export async function fetchPagePost(
+  url: string,
+  formData: Record<string, string>,
+  cookieStr?: string
+): Promise<{ html: string; cookies: string }> {
+  const headers: Record<string, string> = {
+    ...DEFAULT_HEADERS,
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
+  if (cookieStr) {
+    headers.Cookie = cookieStr;
+  }
+
+  const response = await axios.post<string>(url, new URLSearchParams(formData).toString(), {
+    headers,
+    timeout: config.requestTimeout,
+    maxRedirects: 0,
+    validateStatus: (status) => status < 400,
+  });
+
+  // Extract cookie pairs from Set-Cookie headers
+  const setCookies = response.headers["set-cookie"];
+  const cookies = setCookies
+    ? setCookies.map((c: string) => c.split(";")[0]).join("; ")
+    : "";
+
+  return { html: response.data, cookies };
+}
+
+/**
  * Returns a promise that resolves after the given number of milliseconds.
  * Used to throttle detail-page requests and avoid rate limiting.
  *

@@ -1,0 +1,60 @@
+/**
+ * End-to-end test for the Leiloeira do Lena scraper.
+ *
+ * Usage: npx tsx scripts/test-leiloeiradolena-e2e.ts
+ */
+
+import { LeiloeiraDolenaScraper } from "../src/scrapers/leiloeiradolena/leiloeiradolena.scraper.js";
+
+async function main() {
+  console.log("=== Leiloeira do Lena E2E Test ===\n");
+
+  const scraper = new LeiloeiraDolenaScraper();
+  const properties = await scraper.scrape();
+
+  console.log(`\n=== Results: ${properties.length} properties ===\n`);
+
+  for (const p of properties) {
+    console.log("─".repeat(60));
+    console.log(`ID:       ${p.externalId}`);
+    console.log(`Title:    ${p.title}`);
+    console.log(`Price:    ${p.price} € (opening: ${p.openingValue ?? "—"}, min: ${p.minSaleValue ?? "—"}, bid: ${p.currentBid ?? "—"})`);
+    console.log(`Type:     ${p.auctionType}`);
+    console.log(`Location: ${p.location} (${p.district ?? "?"} / ${p.municipality ?? "?"})`);
+    console.log(`Status:   ${p.status}`);
+    console.log(`Images:   ${p.images.length}`);
+    console.log(`URL:      ${p.url}`);
+    if (p.description) {
+      const desc = p.description.length > 120
+        ? p.description.substring(0, 120) + "..."
+        : p.description;
+      console.log(`Desc:     ${desc}`);
+    }
+  }
+
+  printSummary(properties);
+}
+
+function printSummary(properties: any[]) {
+  console.log("\n" + "=".repeat(60));
+  console.log("SUMMARY");
+  console.log("=".repeat(60));
+  console.log(`Total properties:     ${properties.length}`);
+  console.log(`With price:           ${properties.filter((p) => p.price > 0).length}`);
+  console.log(`With opening value:   ${properties.filter((p) => p.openingValue).length}`);
+  console.log(`With images:          ${properties.filter((p) => p.images.length > 0).length}`);
+  console.log(`With description:     ${properties.filter((p) => p.description).length}`);
+  console.log(`With district:        ${properties.filter((p) => p.district).length}`);
+
+  const types: Record<string, number> = {};
+  for (const p of properties) {
+    const t = p.auctionType || "Unknown";
+    types[t] = (types[t] || 0) + 1;
+  }
+  console.log("\nAuction types:");
+  for (const [type, count] of Object.entries(types)) {
+    console.log(`  ${type}: ${count}`);
+  }
+}
+
+main().catch(console.error);
