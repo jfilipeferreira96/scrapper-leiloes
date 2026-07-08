@@ -47,6 +47,23 @@ export class LeiloeiraDolenaScraper extends BaseScraper {
   private cookieStr = "";
 
   /**
+   * Override scrape() to filter out withdrawn ("Retirado") properties
+   * after enrichment, since status is only known from the detail page.
+   */
+  async scrape(): Promise<Property[]> {
+    const results = await super.scrape();
+    const active = results.filter(
+      (p) => p.status?.toLowerCase() !== "retirado"
+    );
+    if (results.length !== active.length) {
+      logger.info(
+        `[${this.source}] Filtered out ${results.length - active.length} withdrawn ("Retirado") properties`
+      );
+    }
+    return active;
+  }
+
+  /**
    * Collect all listings via session-based pagination.
    *
    * 1. POST the filter form → first batch + capture session cookie.
