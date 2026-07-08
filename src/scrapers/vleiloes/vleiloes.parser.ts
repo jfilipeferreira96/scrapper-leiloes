@@ -28,8 +28,9 @@ export const AUCTION_TYPE_LABELS: Record<number, string> = {
 /**
  * Parses a listing page from vleiloes.com.
  *
- * Each item is a `div.post_content` block containing the lot summary,
- * image, price box, and a `<script>` with the end-time timestamp.
+ * Each item is an <article> element inside .lista_vendas containing:
+ * - Image, title, location, description, auction type, dates
+ * - Prices are NOT in the listing; they are only on the detail page
  *
  * @param html - Raw HTML of the listing page
  * @param auctionType - Human-readable auction type label
@@ -39,49 +40,48 @@ export function parseVLeiloesListing(html: string, auctionType: string): Propert
   const $ = cheerio.load(html);
   const properties: Property[] = [];
 
-  $(".lista_vendas .post_content").each((_, item) => {
+  $(".lista_vendas article.post_format_standard").each((_, item) => {
     const $item = $(item);
 
     // --- URL & external id ---
-    // Link looks like ./?page=leilao&leilao=772&venda=316&tipo=2
-    const detailHref = $item.find(".pesquisa_titulo a").attr("href") || "";
+    // Link looks like ./?page=venda&venda=334
+    const detailHref = $item.find(".title_area h1.post_title a").attr("href") || "";
     const url = buildAbsoluteUrl(detailHref);
 
-    const leilaoMatch = detailHref.match(/leilao=(\d+)/);
     const vendaMatch = detailHref.match(/venda=(\d+)/);
-    const externalId = leilaoMatch ? leilaoMatch[1] : "";
-    const venda = vendaMatch ? vendaMatch[1] : "";
+    const externalId = vendaMatch ? vendaMatch[1] : "";
     if (!externalId) return;
 
     // --- Title ---
-    const title = $item.find(".pesquisa_titulo h1").text().trim();
+    const title = $item.find(".titulo_venda").text().trim();
 
-    // --- Description (raw text) ---
-    const description = $item.find(".texto_lote").text().trim();
+    // --- Location ---
+    const location = $item.find(".cidade_venda").text().trim().replace(/\s+/g, " ");
+
+    // --- Description (can be multiple .descricao_venda spans) ---
+    const descriptions: string[] = [];
+    $item.find(".descricao_venda").each((_, desc) => {
+      const text = $(desc).text().trim();
+      if (text) descriptions.push(text);
+    });
+    const description = descriptions.join(" ");
 
     // --- Image (thumbnail) ---
-    const imgSrc = $item.find(".span3 a img").attr("src") || "";
+    const imgSrc = $item.find(".pic_wrapper img").attr("src") || "";
     const image = imgSrc ? buildAbsoluteUrl(imgSrc) : undefined;
 
-    // --- Prices ---
-    // Valor Minimo → infobox_valorbase
-    // Valor Actual → id="valor-actual-{leilao}"
-    const minText = $item.find(".infobox_valorbase p").text().trim();
-    const minSaleValue = parsePrice(minText);
-    const currentBid = parsePrice(
-      $item.find(`#valor-actual-${externalId}`).text()
-    );
-    // Use currentBid as the main price; fall back to minimum.
-    const price = currentBid || minSaleValue || 0;
+    // --- Auction type, dates, and status from .tipo_leilao ---
+    const tipoLeilaoText = $item.find(".tipo_leilao").text().trim();
+    // Extract start/end dates from "Inicio:14/05/2026   10:00 | Fim:14/07/2026   12:00 |"
+    const publishedAt = extractDateFromTipoLeilao(tipoLeilaoText, "Inicio");
+    const endDate = extractDateFromTipoLeilao(tipoLeilaoText, "Fim");
 
-    // --- End date from embedded JS (lasttime = Unix seconds) ---
-    const endDate = extractEndDateFromScript($item, externalId);
+    // Status from .a_decorrer span
+    const status = $item.find(".a_decorrer").text().trim() || "A decorrer";
 
-    // --- Start date from description text "INÍCIO: dd/mm/aaaa hh:mm" ---
-    const publishedAt = extractStartDateFromText(description);
-
-    // --- Location from description (best-effort heuristic) ---
-    const location = extractLocationFromText(description);
+    // --- Prices are NOT in the listing; only on detail page ---
+    // We'll set price = 0 for now and enrich in detail page
+    const price = 0;
 
     properties.push({
       source: "vleiloes",
@@ -89,15 +89,12 @@ export function parseVLeiloesListing(html: string, auctionType: string): Propert
       title,
       description,
       price,
-      minSaleValue: minSaleValue || undefined,
-      currentBid: currentBid || undefined,
       location: location || "Localização não especificada",
       auctionType,
       url,
       images: image ? [image] : [],
-      status: "A decorrer",
+      status,
       publishedAt,
-      // endDate is not a Property field but kept for reference via publishedAt
     });
   });
 
@@ -105,7 +102,7 @@ export function parseVLeiloesListing(html: string, auctionType: string): Propert
 }
 
 /**
- * Parses a detail (lot) page and enriches the base Property.
+ * Parses a detail (venda) page and enriches the base Property.
  *
  * @param html - Raw HTML of the detail page
  * @param base - Base Property from the listing
@@ -114,32 +111,36 @@ export function parseVLeiloesListing(html: string, auctionType: string): Propert
 export function parseVLeiloesDetail(html: string, base: Property): Property {
   const $ = cheerio.load(html);
 
-  // --- Gallery images: <a data-lightbox="loteX" href="...">
-  const images = extractGalleryImages($);
-
   // --- Description (detail page has cleaner text) ---
-  const description =
-    $(".detalhe_verba .post_content p").text().trim() || base.description;
+  const description = $(".detalhe_verba .texto_lote").text().trim() || base.description;
 
-  // --- Prices: detail page shows Valor Base / Valor Minimo / Valor Abertura / Valor Actual ---
+  // --- Location from description text ---
+  const location = description ? extractLocationFromDescription(description) : undefined;
+  const finalLocation = location || base.location;
+
+  // --- Images ---
+  const images = extractDetailImages($);
+
+  // --- Prices from venda_tabela ---
   const priceInfo = extractDetailPrices($);
 
-  // --- Dates from description text ---
-  const publishedAt = extractStartDateFromText(description ?? "") || base.publishedAt;
+  // --- Use currentBid as the main price; fall back to openingValue ---
+  const price = priceInfo.currentBid || priceInfo.openingValue || base.price;
 
-  // --- Location (best-effort) ---
-  const location = extractLocationFromText(description ?? "") || base.location;
+  // --- District and municipality from location ---
+  const { district, municipality } = parseLocation(finalLocation || "");
 
   return {
     ...base,
-    description,
-    price: priceInfo.currentBid || priceInfo.openingValue || base.price,
+    description: description || "",
+    price,
     openingValue: priceInfo.openingValue,
     minSaleValue: priceInfo.minSaleValue,
     currentBid: priceInfo.currentBid,
-    location,
+    location: finalLocation || "Localização não especificada",
+    district,
+    municipality,
     images: images.length > 0 ? images : base.images,
-    publishedAt,
   };
 }
 
@@ -156,33 +157,17 @@ function buildAbsoluteUrl(href: string): string {
 }
 
 /**
- * Extracts the end date from the embedded JS `lasttime` variable.
- * The listing script contains:  var lasttime = 1775733360;
+ * Extracts a date from .tipo_leilao text like "Inicio:14/05/2026   10:00 | Fim:14/07/2026   12:00 |"
  */
-function extractEndDateFromScript(
-  $item: cheerio.Cheerio<any>,
-  _leilaoId: string
-): Date | undefined {
-  const scriptText = $item.find("script").first().html() || "";
-  const match = scriptText.match(/var\s+lasttime\s*=\s*(\d+)/);
-  if (match) {
-    const seconds = parseInt(match[1], 10);
-    return new Date(seconds * 1000);
-  }
-  return undefined;
-}
-
-/**
- * Extracts the start date from text containing "INÍCIO: dd/mm/aaaa hh:mm".
- * @returns Date or undefined
- */
-function extractStartDateFromText(text: string): Date | undefined {
+function extractDateFromTipoLeilao(text: string, label: string): Date | undefined {
   if (!text) return undefined;
-  // Normalise INÍCIO (with/without accent)
-  const normalized = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  const match = normalized.match(
-    /INICIO:\s*(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/
-  );
+  // Normalize label (accent handling)
+  const normalizedLabel = label.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const normalizedText = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  
+  const regex = new RegExp(`${normalizedLabel}:\\s*(\\d{2})/(\\d{2})/(\\d{4})\\s+(\\d{2}):(\\d{2})`);
+  const match = normalizedText.match(regex);
+  
   if (match) {
     const [, day, month, year, hours, minutes] = match;
     return new Date(
@@ -197,52 +182,38 @@ function extractStartDateFromText(text: string): Date | undefined {
 }
 
 /**
- * Best-effort extraction of a location from the lot description.
- *
- * Portuguese legal descriptions typically mention "freguesia de X" or
- * "concelho de Y" — we try those patterns and fall back to "sito em Z".
+ * Extracts location from description text.
+ * Looks for "Localização: ..." pattern.
  */
-function extractLocationFromText(text: string): string | undefined {
+function extractLocationFromDescription(text: string): string | undefined {
   if (!text) return undefined;
-
-  const normalized = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-  // 1. "freguesia de <Name>"
-  const fregMatch = normalized.match(/freguesia\s+de\s+([A-Z][A-Za-zÀ-ÿ\s,.-]{2,60})/i);
-  if (fregMatch) return cleanLocation(fregMatch[1]);
-
-  // 2. "concelho de <Name>"
-  const concMatch = normalized.match(/concelho\s+de\s+([A-Z][A-Za-zÀ-ÿ\s,.-]{2,60})/i);
-  if (concMatch) return cleanLocation(concMatch[1]);
-
-  // 3. "sito em <Name>" up to comma or period
-  const sitoMatch = normalized.match(/sito\s+em\s+([A-Z][A-Za-zÀ-ÿ\s,.-]{2,60})/i);
-  if (sitoMatch) return cleanLocation(sitoMatch[1]);
-
+  
+  const match = text.match(/Localização:\s*([^<]+)/i);
+  if (match) {
+    return match[1].trim();
+  }
+  
   return undefined;
 }
 
-/** Cleans a raw location string by trimming trailing punctuation/conjunctions. */
-function cleanLocation(raw: string): string {
-  return raw
-    .replace(/[,\s]+(do|da|dos|das|de)\s*$/i, "")
-    .replace(/[,\s.]+$/, "")
-    .trim();
-}
-
-/** Extracts all gallery image URLs from the detail page. */
-function extractGalleryImages($: cheerio.CheerioAPI): string[] {
+/**
+ * Extracts all image URLs from the detail page.
+ */
+function extractDetailImages($: cheerio.CheerioAPI): string[] {
   const images: string[] = [];
-  $(".image_wrapper a[data-lightbox]").each((_, el) => {
-    const href = $(el).attr("href");
-    if (href) {
-      images.push(href.startsWith("http") ? href : buildAbsoluteUrl(href));
+  $(".detalhe_verba .span3 a img").each((_, el) => {
+    const src = $(el).attr("src");
+    if (src) {
+      images.push(src.startsWith("http") ? src : buildAbsoluteUrl(src));
     }
   });
   return [...new Set(images)];
 }
 
-/** Extracts the price box values from the detail page. */
+/**
+ * Extracts price information from the venda_tabela table.
+ * The table has alternating rows: title row (.venda_linha_titulo) followed by value row (.venda_linha_valor)
+ */
 function extractDetailPrices($: cheerio.CheerioAPI): {
   openingValue: number | undefined;
   minSaleValue: number | undefined;
@@ -254,20 +225,68 @@ function extractDetailPrices($: cheerio.CheerioAPI): {
     currentBid: undefined as number | undefined,
   };
 
-  // The detail page has multiple .infobox_valorbase blocks with <small> labels.
-  $(".infobox_valorbase, .infobox_valoractual").each((_, el) => {
-    const $el = $(el);
-    const label = $el.find("small").text().trim().toLowerCase();
-    const value = parsePrice($el.find("p").text());
+  const $table = $(".venda_tabela").first();
+  if ($table.length === 0) return result;
 
-    if (label.includes("abertura")) {
-      result.openingValue = value;
-    } else if (label.includes("minimo") || label.includes("mínimo")) {
-      result.minSaleValue = value;
-    } else if (label.includes("actual") || label.includes("atual")) {
-      result.currentBid = value;
+  const $rows = $table.find("tr");
+  let currentLabel = "";
+
+  $rows.each((_, row) => {
+    const $row = $(row);
+    const $titulo = $row.find(".venda_linha_titulo");
+    const $valor = $row.find(".venda_linha_valor");
+
+    if ($titulo.length > 0) {
+      currentLabel = $titulo.text().trim().toLowerCase();
+    } else if ($valor.length > 0) {
+      const value = parsePrice($valor.text());
+
+      if (currentLabel.includes("abertura")) {
+        result.openingValue = value;
+      } else if (currentLabel.includes("minimo") || currentLabel.includes("mínimo")) {
+        result.minSaleValue = value;
+      } else if (currentLabel.includes("base")) {
+        // Valor Base is often the opening value
+        if (result.openingValue === undefined) {
+          result.openingValue = value;
+        }
+      }
     }
   });
 
+  // Try to get current bid from #valor-actual-{id} element
+  // Note: This is often loaded dynamically via JS, so it might be empty
+  const $valorActual = $table.find("[id^='valor-actual-']").first();
+  if ($valorActual.length > 0) {
+    const text = $valorActual.text().trim();
+    // Skip "Sem licitações" text
+    if (!text.toLowerCase().includes("sem licitações")) {
+      result.currentBid = parsePrice(text);
+    }
+  }
+
   return result;
+}
+
+/**
+ * Parses a location string into district and municipality.
+ * Format: "PORTALEGRE • AVIS • BENAVILA" or "PORTALEGRE • AVIS"
+ */
+function parseLocation(location: string): {
+  district: string | undefined;
+  municipality: string | undefined;
+} {
+  const parts = location.split("•").map(p => p.trim());
+  
+  if (parts.length >= 1) {
+    return {
+      district: parts[0] || undefined,
+      municipality: parts[1] || undefined,
+    };
+  }
+  
+  return {
+    district: undefined,
+    municipality: undefined,
+  };
 }
