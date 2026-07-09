@@ -1,12 +1,17 @@
-import puppeteer, { type Browser, type Page, type LaunchOptions } from 'puppeteer';
+import puppeteerExtra from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import { type Browser, type Page, type LaunchOptions } from 'puppeteer';
 import { logger } from './logger.js';
 import { delay } from './http.js';
+
+// Register stealth plugin once
+puppeteerExtra.use(StealthPlugin());
 
 /**
  * Lightweight Puppeteer utility for scraping sites with WAF protection.
  *
  * This utility provides a simple interface to:
- * - Launch a headless browser
+ * - Launch a headless browser (with stealth plugin for WAF bypass)
  * - Navigate to pages and wait for content
  * - Extract data from pages
  * - Clean up resources
@@ -24,8 +29,14 @@ export class PuppeteerHelper {
   private static browser: Browser | null = null;
 
   /**
-   * Launch a Puppeteer browser instance.
+   * Launch a Puppeteer browser instance with stealth plugin.
    * Reuses existing instance if available.
+   *
+   * The stealth plugin helps bypass WAF protections by:
+   * - Masking automation indicators (navigator.webdriver)
+   * - Spoofing browser plugins and languages
+   * - Mocking Chrome runtime
+   * - Evasion of headless detection
    */
   static async launch(): Promise<Browser> {
     if (this.browser) {
@@ -44,8 +55,8 @@ export class PuppeteerHelper {
       ],
     };
 
-    this.browser = await puppeteer.launch(options);
-    logger.info('[PuppeteerHelper] Browser launched');
+    this.browser = await puppeteerExtra.launch(options);
+    logger.info('[PuppeteerHelper] Browser launched with stealth plugin');
     return this.browser;
   }
 
