@@ -16,13 +16,22 @@ import { ExcelService } from "../database/excel.service.js";
 import { runAllScrapers } from "./scraper.service.js";
 import { diffProperties } from "./property.service.js";
 import { logger } from "../utils/logger.js";
+import type { PropertyDiff } from "../models/property.js";
+
+/**
+ * Monitoring result containing both new properties and diff statistics
+ */
+export interface MonitoringResult {
+  newProperties: Property[];
+  diffs: PropertyDiff[];
+}
 
 /**
  * Run the full monitoring pipeline.
  *
- * @returns Array of new properties found
+ * @returns Object containing new properties and diff results
  */
-export async function runMonitoring(): Promise<Property[]> {
+export async function runMonitoring(): Promise<MonitoringResult> {
   logger.info("=== Starting monitoring run ===");
 
   // Step 1: Scrape all active sources
@@ -53,5 +62,5 @@ export async function runMonitoring(): Promise<Property[]> {
   }
 
   logger.info("=== Monitoring run complete ===");
-  return newProperties;
+  return { newProperties, diffs };
 }

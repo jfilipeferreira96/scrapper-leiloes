@@ -15,17 +15,14 @@ async function main(): Promise<void> {
   logger.info("=== Execution started ===");
 
   // Run full monitoring pipeline
-  const newProperties = await runMonitoring();
+  const { newProperties, diffs } = await runMonitoring();
 
   // Export viewer data (Excel -> data/data.js)
   const excel = new ExcelService();
   await exportViewerData(excel.filePath);
 
-  // Print summary
-  printSummary(newProperties.map((p) => ({
-    record: { ...p, key: `${p.source}:${p.externalId}` } as any,
-    changeType: "NEW",
-  })));
+  // Print summary with actual diff results
+  printSummary(diffs);
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
   logger.info(`=== Execution finished (${elapsed}s) ===`);
