@@ -13,6 +13,7 @@ import { LeiloatriumScraper } from "./leiloatrium/leiloatrium.scraper.js";
 import { CParaisoScraper } from "./cparaiso/cparaiso.scraper.js";
 import { ViaserumosScraper } from "./viaserumos/viaserumos.scraper.js";
 import { MaximovalorScraper } from "./maximovalor/maximovalor.scraper.js";
+import { CaixaimobiliarioScraper } from "./caixaimobiliario/caixaimobiliario.scraper.js";
 import type { Scraper } from "./base.scraper.js";
 import { config } from "../config/index.js";
 
@@ -32,6 +33,7 @@ export const SCRAPERS: Record<string, Scraper> = {
   cparaiso: new CParaisoScraper() as Scraper,
   viaserumos: new ViaserumosScraper() as Scraper,
   maximovalor: new MaximovalorScraper() as Scraper,
+  caixaimobiliario: new CaixaimobiliarioScraper() as Scraper,
 };
 
 export function getActiveScrapers(): Scraper[] {
