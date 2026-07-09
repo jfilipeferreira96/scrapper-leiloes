@@ -11,6 +11,7 @@ import { SolventiumScraper } from "./solventium/solventium.scraper.js";
 import { ExclusivagoraScraper } from "./exclusivagora/exclusivagora.scraper.js";
 import { LeiloatriumScraper } from "./leiloatrium/leiloatrium.scraper.js";
 import { CParaisoScraper } from "./cparaiso/cparaiso.scraper.js";
+import { ViaserumosScraper } from "./viaserumos/viaserumos.scraper.js";
 import type { Scraper } from "./base.scraper.js";
 import { config } from "../config/index.js";
 
@@ -28,6 +29,7 @@ export const SCRAPERS: Record<string, Scraper> = {
   exclusivagora: new ExclusivagoraScraper() as Scraper,
   leiloatrium: new LeiloatriumScraper() as Scraper,
   cparaiso: new CParaisoScraper() as Scraper,
+  viaserumos: new ViaserumosScraper() as Scraper,
 };
 
 export function getActiveScrapers(): Scraper[] {

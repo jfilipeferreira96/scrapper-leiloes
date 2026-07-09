@@ -38,9 +38,10 @@ export function parseRooms(raw: string | undefined | null): number | undefined {
 /**
  * Parses a Portuguese-formatted date string.
  *
- * Handles two known formats used by the auction sites:
+ * Handles three known formats used by the auction sites:
  *  1. Numeric: "2026-05-27 pelas 09:00" or "2026-05-27"
  *  2. Long:    "27 de maio de 2026 - 09:00:00"
+ *  3. Short:   "15/06/2026 09:00:00" (DD/MM/YYYY HH:mm:ss)
  *
  * @param raw - Date string in one of the supported formats
  * @returns Parsed Date, or undefined if it cannot be parsed
@@ -74,7 +75,21 @@ export function parsePortugueseDate(
     .trim()
     .toLowerCase();
 
-  // 1. Long format: "27 de maio de 2026 - 09:00:00"
+  // 1. Short format: "15/06/2026 09:00:00" (DD/MM/YYYY HH:mm:ss)
+  const shortMatch = raw.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/);
+  if (shortMatch) {
+    const [, day, month, year, hours, minutes, seconds] = shortMatch;
+    return new Date(
+      parseInt(year),
+      parseInt(month) - 1,
+      parseInt(day),
+      parseInt(hours),
+      parseInt(minutes),
+      parseInt(seconds)
+    );
+  }
+
+  // 2. Long format: "27 de maio de 2026 - 09:00:00"
   const longMatch = normalized.match(
     /(\d+)\s+de\s+([a-z]+)\s+de\s+(\d+)\s*-?\s*(\d+):(\d+)(?::(\d+))?/
   );
@@ -92,7 +107,7 @@ export function parsePortugueseDate(
     );
   }
 
-  // 2. Numeric format: "2026-05-27 pelas 09:00" or "2026-05-27"
+  // 3. Numeric format: "2026-05-27 pelas 09:00" or "2026-05-27"
   const numericMatch = normalized.match(/(\d{4})-(\d{2})-(\d{2})/);
   if (numericMatch) {
     const [, year, month, day] = numericMatch;
