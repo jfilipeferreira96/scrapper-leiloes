@@ -1,5 +1,6 @@
 import puppeteer, { type Browser, type Page, type LaunchOptions } from 'puppeteer';
 import { logger } from './logger.js';
+import { delay } from './http.js';
 
 /**
  * Lightweight Puppeteer utility for scraping sites with WAF protection.
@@ -225,7 +226,7 @@ export class PuppeteerHelper {
       await page.evaluate(() => {
         window.scrollTo(0, document.body.scrollHeight);
       });
-      await page.waitForTimeout(1000);
+      await delay(1000);
     }
   }
 
@@ -266,14 +267,14 @@ export class PuppeteerHelper {
    * @param page - Puppeteer page instance
    * @param fn - Function to execute
    * @param maxRetries - Maximum number of retries (default: 3)
-   * @param delay - Delay between retries in milliseconds (default: 1000)
+   * @param retryDelay - Delay between retries in milliseconds (default: 1000)
    * @returns Result of the function execution
    */
   static async retry<T>(
     page: Page,
     fn: () => Promise<T>,
     maxRetries: number = 3,
-    delay: number = 1000
+    retryDelay: number = 1000
   ): Promise<T> {
     for (let i = 0; i < maxRetries; i++) {
       try {
@@ -281,7 +282,7 @@ export class PuppeteerHelper {
       } catch (err) {
         if (i === maxRetries - 1) throw err;
         logger.warn(`[PuppeteerHelper] Retry ${i + 1}/${maxRetries}`);
-        await page.waitForTimeout(delay);
+        await delay(retryDelay);
       }
     }
     throw new Error('Max retries exceeded');
