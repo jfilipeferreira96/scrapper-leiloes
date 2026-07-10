@@ -3,6 +3,7 @@ dist/
 data/*.xlsx
 data/data.js
 data/*.js
+viewer/data.js
 .env
 reports/
 *.log

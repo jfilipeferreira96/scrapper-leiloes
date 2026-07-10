@@ -118,7 +118,11 @@ export async function exportViewerData(excelPath: string): Promise<void> {
     generatedAt: new Date().toISOString(),
   };
 
-  const outputDir = path.dirname(excelPath);
+  // Write data.js into the viewer/ folder (alongside index.html, app.js, etc.)
+  const outputDir = path.join(process.cwd(), "viewer");
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
   const outputPath = path.join(outputDir, "data.js");
 
   // Write as a global variable so the HTML can load it with file:// protocol

@@ -6,7 +6,7 @@
   "scripts": {
     "start": "tsx src/app.ts",
     "dev": "tsx watch src/app.ts",
-    "clean": "rm -f data/data.js data/index.html data/properties.xlsx",
+    "clean": "rm -f data/data.js data/properties.xlsx viewer/data.js",
     "test:inlex": "tsx scripts/test-inlex-e2e.ts",
     "test:leilostar": "tsx scripts/test-leilostar-e2e.ts",
     "test:avaliberica": "tsx scripts/test-avaliberica-e2e.ts",

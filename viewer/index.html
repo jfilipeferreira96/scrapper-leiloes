@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt" class="">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leilões — Monitor de Imóveis</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' };
+  </script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 min-h-screen">
+
+  <!-- ==================== HEADER ==================== -->
+  <header class="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+    <div class="max-w-[1600px] mx-auto px-4 py-3 flex items-center justify-between gap-4">
+      <div>
+        <h1 class="text-base md:text-lg font-bold tracking-tight">Leilões — Monitor de Imóveis</h1>
+        <p id="generatedAt" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5"></p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="exportCsv" title="Exportar CSV"
+          class="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+          CSV
+        </button>
+        <button id="darkToggle" title="Alternar tema"
+          class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center justify-center">
+          <svg class="w-4 h-4 dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+          <svg class="w-4 h-4 hidden dark:inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== MAIN ==================== -->
+  <main class="max-w-[1600px] mx-auto px-4 py-5 space-y-4">
+
+    <!-- ---- Stats ---- -->
+    <section id="stats" class="grid grid-cols-2 lg:grid-cols-4 gap-3"></section>
+
+    <!-- ---- View tabs ---- -->
+    <div class="flex items-center gap-2 flex-wrap">
+      <button class="view-tab active" data-view="all">Todos</button>
+      <button class="view-tab" data-view="new">Novos <span class="count-badge" id="newBadge">0</span></button>
+      <button class="view-tab" data-view="zones">Zonas de Interesse <span class="count-badge" id="zonesBadge">0</span></button>
+      <button id="zoneConfigBtn"
+        class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center justify-center text-slate-500 hover:text-blue-600 dark:hover:text-blue-400"
+        title="Configurar zonas de interesse">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      </button>
+      <button class="view-tab" data-view="favorites">Favoritos <span class="count-badge" id="favBadge">0</span></button>
+      <button class="view-tab" data-view="excluded">Excluídos <span class="count-badge" id="exclBadge">0</span></button>
+    </div>
+
+    <!-- ---- Filters ---- -->
+    <section class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-3">
+      <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div class="md:col-span-3 lg:col-span-2">
+          <input id="search" type="text" placeholder="Pesquisar título, morada, localização..." class="form-input">
+        </div>
+        <select id="filterSource" class="form-input"><option value="">Todas as fontes</option></select>
+        <select id="filterDistrict" class="form-input"><option value="">Todos os distritos</option></select>
+        <select id="filterStatus" class="form-input"><option value="">Todos os estados</option></select>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="text-xs font-semibold text-slate-400 dark:text-slate-600 uppercase tracking-wide mr-1">Preço</span>
+        <button class="price-preset" data-pmin="" data-pmax="50000">< 50k</button>
+        <button class="price-preset" data-pmin="50000" data-pmax="100000">50–100k</button>
+        <button class="price-preset" data-pmin="100000" data-pmax="200000">100–200k</button>
+        <button class="price-preset" data-pmin="200000" data-pmax="500000">200–500k</button>
+        <button class="price-preset" data-pmin="500000" data-pmax="">> 500k</button>
+        <div class="flex items-center gap-1.5 ml-2">
+          <input id="priceMin" type="number" placeholder="mín" class="form-input w-24">
+          <span class="text-slate-400 text-sm">—</span>
+          <input id="priceMax" type="number" placeholder="máx" class="form-input w-24">
+          <span class="text-slate-400 text-sm">€</span>
+        </div>
+      </div>
+      <!-- Active filter chips -->
+      <div id="filterChips" class="flex items-center gap-2 flex-wrap min-h-[0px]"></div>
+      <!-- Source legend + controls -->
+      <div class="flex items-center justify-between gap-3 flex-wrap pt-1 border-t border-slate-100 dark:border-slate-800">
+        <div id="sourceLegend" class="flex items-center gap-3 flex-wrap text-xs text-slate-500 dark:text-slate-400"></div>
+        <div class="flex items-center gap-3 flex-wrap">
+          <p id="resultCount" class="text-sm text-slate-500 dark:text-slate-400"></p>
+          <label class="text-sm text-slate-500 dark:text-slate-400">Por página:</label>
+          <select id="pageSize" class="form-input w-auto">
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="0">Todos</option>
+          </select>
+          <button id="clearFilters"
+            class="text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium whitespace-nowrap">
+            Limpar filtros
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- Table ---- -->
+    <section id="tableSection" class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm" style="min-width: 1230px;">
+          <thead>
+            <tr class="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wide">
+              <th class="w-8 px-2 py-3"></th>
+              <th class="px-3 py-3 text-left font-semibold cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 whitespace-nowrap" data-sort="title">
+                Imóvel <span class="sort-indicator"></span>
+              </th>
+              <th class="px-3 py-3 text-left font-semibold whitespace-nowrap">Morada</th>
+              <th class="px-3 py-3 text-right font-semibold cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 whitespace-nowrap" data-sort="price">
+                Preço <span class="sort-indicator"></span>
+              </th>
+              <th class="px-3 py-3 text-right font-semibold cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 whitespace-nowrap" data-sort="openingValue">
+                Abertura <span class="sort-indicator"></span>
+              </th>
+              <th class="px-3 py-3 text-right font-semibold cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 whitespace-nowrap" data-sort="minSaleValue">
+                Mínimo <span class="sort-indicator"></span>
+              </th>
+              <th class="px-3 py-3 text-right font-semibold cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 whitespace-nowrap" data-sort="currentBid">
+                Licitação <span class="sort-indicator"></span>
+              </th>
+              <th class="px-3 py-3 text-right font-semibold cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 whitespace-nowrap" data-sort="area">
+                Área <span class="sort-indicator"></span>
+              </th>
+              <th class="px-3 py-3 text-left font-semibold whitespace-nowrap">Estado</th>
+              <th class="px-3 py-3 text-right font-semibold cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 whitespace-nowrap" data-sort="firstSeenAt">
+                Detectado <span class="sort-indicator"></span>
+              </th>
+              <th class="w-20 px-2 py-3 text-center font-semibold whitespace-nowrap"></th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---- Pagination ---- -->
+    <section id="pagination" class="flex items-center justify-between gap-4 flex-wrap"></section>
+
+    <!-- ---- Empty state ---- -->
+    <div id="emptyState" class="hidden text-center py-16">
+      <p class="text-lg font-semibold text-slate-600 dark:text-slate-400">Sem resultados</p>
+      <p class="text-sm text-slate-400 dark:text-slate-600 mt-1">Ajusta os filtros para encontrar imóveis.</p>
+    </div>
+  </main>
+
+  <!-- ==================== ZONE CONFIG MODAL ==================== -->
+  <div id="zoneModal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-700">
+        <div>
+          <h2 class="font-bold text-base">Configurar Zonas de Interesse</h2>
+          <p id="zoneModalSummary" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5"></p>
+        </div>
+        <button id="zoneModalClose"
+          class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl leading-none w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition">&times;</button>
+      </div>
+      <div class="modal-scroll space-y-3">
+        <div id="zoneModalContent"></div>
+      </div>
+      <div
+        class="flex items-center justify-between gap-3 px-5 py-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 rounded-b-xl">
+        <div class="flex gap-2">
+          <button id="zoneSelectAll"
+            class="text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium">Selecionar tudo</button>
+          <span class="text-slate-300 dark:text-slate-700">|</span>
+          <button id="zoneClearAll"
+            class="text-sm text-slate-500 hover:text-red-500 hover:underline font-medium">Limpar</button>
+        </div>
+        <button id="zoneSave"
+          class="px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition shadow-sm">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="text-center text-xs text-slate-400 dark:text-slate-600 py-6">
+    Atalho: <kbd class="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">/</kbd> para pesquisar
+  </footer>
+
+  <!-- ==================== DATA + LOGIC ==================== -->
+  <script src="filters.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
