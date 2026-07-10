@@ -1,7 +1,4 @@
-/* ============================================================================
-   Leilões Monitor — Viewer Styles
-   Custom component styles that complement Tailwind (loaded via CDN in HTML).
-   ============================================================================ */
+/* Viewer component styles (complements Tailwind CDN) */
 
 body {
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;

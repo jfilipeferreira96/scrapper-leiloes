@@ -1,10 +1,5 @@
-// ============================================================================
-// FILTERS — Zonas de Interesse
-// ============================================================================
-// Define as zonas disponíveis para o separador "Zonas de Interesse".
-// O utilizador ativa/desativa as zonas através de checkboxes no viewer.
-// As seleções são guardadas em localStorage.
-// ============================================================================
+// Zonas de Interesse — edita as localizações conforme necessário.
+// As seleções do utilizador são guardadas em localStorage.
 
 window.__FILTERS__ = {
   // Distritos disponíveis para o scope

@@ -1,26 +1,8 @@
-import * as dotenv from "dotenv";
-dotenv.config();
-
 export const config = {
-  excelPath: process.env.EXCEL_PATH || "./data/properties.xlsx",
+  excelPath: "./data/properties.xlsx",
   userAgent:
-    process.env.USER_AGENT ||
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-  requestTimeout: parseInt(process.env.REQUEST_TIMEOUT || "30000", 10),
-  // Per-scraper timeout in milliseconds. If a scraper exceeds this duration,
-  // it is aborted and the pipeline moves on to the next scraper.
-  // Default: 300000ms (5 minutes).
-  scraperTimeoutMs: parseInt(process.env.SCRAPER_TIMEOUT_MS || "300000", 10),
-  activeScrapers: (process.env.ACTIVE_SCRAPERS || "")
-    .split(",")
-    .map((s) => s.trim()),
-  // Filter properties by location. Set to true to enable location-based filtering.
-  // Default: false (bring all properties) for testing purposes.
-  filterByLocation: process.env.FILTER_BY_LOCATION === "true",
-  // Districts to scope the "Zonas de Interesse" filter.
-  // Comma-separated. Empty = no district restriction (exact match only).
-  zoneDistricts: (process.env.ZONE_DISTRICTS || "Aveiro,Porto")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean),
+  requestTimeout: 30000,
+  scraperTimeoutMs: 300000,
+  activeScrapers: [] as string[],
 };

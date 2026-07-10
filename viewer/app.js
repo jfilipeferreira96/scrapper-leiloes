@@ -1,10 +1,3 @@
-/* ============================================================================
-   Leilões Monitor — Viewer Application Logic
-   ============================================================================
-   Modernized: const/let, arrow functions, template literals.
-   File:// compatible (IIFE wrapper, no ES module imports).
-   ============================================================================ */
-
 (function () {
   'use strict';
 
