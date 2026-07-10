@@ -1,16 +1,4 @@
-/**
- * Solventium Scraper.
- *
- * Scrapes 6 auction types via the ?tipo=N query parameter:
- *   tipo=2 → Leilão Electrónico
- *   tipo=1 → Leilão Presencial
- *   tipo=5 → Negociação Particular
- *   tipo=6 → Carta Fechada
- *   tipo=7 → Vendas Particulares
- *   tipo=10 → Brevemente
- *
- * Uses BaseScraper for the uniform pipeline (listing → filter → enrich).
- */
+// Auction types via ?tipo=N: 2=Electrónico, 1=Presencial, 5=Negociação, 6=Carta Fechada, 7=Vendas Particulares, 10=Brevemente
 
 import { BaseScraper } from "../base.scraper.js";
 import type { Property } from "../../models/property.js";
@@ -23,19 +11,12 @@ import {
 } from "./solventium.parser.js";
 
 const BASE_URL = "https://www.solventium.pt";
-
-/** Auction type params to scrape (?tipo=N). */
 const AUCTION_TYPE_PARAMS = [2, 1, 5, 6, 7, 10];
-
-/** Max number of listing pages to fetch per auction type. */
 const MAX_PAGES = 20;
 
 export class SolventiumScraper extends BaseScraper {
   readonly source = "solventium";
 
-  /**
-   * Collect listings from all auction types, handling pagination.
-   */
   protected async collectListings(): Promise<Property[]> {
     const allProperties: Property[] = [];
 
@@ -59,9 +40,6 @@ export class SolventiumScraper extends BaseScraper {
     return allProperties;
   }
 
-  /**
-   * Collect a single auction type, iterating pages until empty.
-   */
   private async collectType(
     tipo: number,
     auctionType: string
@@ -79,12 +57,12 @@ export class SolventiumScraper extends BaseScraper {
         const pageProps = parseSolventiumListing(html, auctionType);
 
         if (pageProps.length === 0) {
-          break; // No more results
+          break;
         }
 
         properties.push(...pageProps);
 
-        // If fewer than expected items returned, assume last page.
+        // Fewer than 5 items means we've hit the last page
         if (pageProps.length < 5) {
           break;
         }
@@ -97,9 +75,6 @@ export class SolventiumScraper extends BaseScraper {
     return properties;
   }
 
-  /**
-   * Enrich a single Property with detail page data.
-   */
   protected async enrichDetail(base: Property): Promise<Property> {
     const detailHtml = await fetchPage(base.url);
     return parseSolventiumDetail(detailHtml, base);

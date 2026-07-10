@@ -1,13 +1,4 @@
-/**
- * CParaiso Scraper.
- *
- * Scrapes property auctions from cparaiso.pt.
- *
- * The site uses a simple static listing page:
- *  - Category page: /pt/auction/category/id/5 (Imóveis)
- *  - Detail pages: /pt/leiloes/{slug}/{slug}
- *  - No pagination needed (all items on one page)
- */
+// Static listing page — all items on one page, no pagination needed.
 
 import { BaseScraper } from "../base.scraper.js";
 import type { Property } from "../../models/property.js";
@@ -24,9 +15,6 @@ const LISTING_URL = `${BASE_URL}/pt/auction/category/id/5`;
 export class CParaisoScraper extends BaseScraper {
   readonly source = "cparaiso";
 
-  /**
-   * Collect all listings from the category page.
-   */
   protected async collectListings(): Promise<Property[]> {
     logger.info(`[${this.source}] Fetching listing page: ${LISTING_URL}`);
     
@@ -37,9 +25,6 @@ export class CParaisoScraper extends BaseScraper {
     return listings;
   }
 
-  /**
-   * Enrich a single Property with detail page data.
-   */
   protected async enrichDetail(base: Property): Promise<Property> {
     const detailHtml = await fetchPage(base.url);
     return parseCparaisoDetail(detailHtml, base);

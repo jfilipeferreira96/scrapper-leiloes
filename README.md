@@ -1,6 +1,6 @@
 # Leilões — Monitor de Imóveis
 
-Monitoriza leilões imobiliários em Portugal. Corre scrapers de várias plataformas, guarda tudo num Excel e gera um viewer HTML para pesquisar e filtrar os resultados.
+Monitor de leilões imobiliários em Portugal. Scraping de várias plataformas, exportação para Excel e um viewer em HTML com filtros. Projeto pessoal para filtrar imóveis na minha zona. Serve o propósito, mas não é nada de elaborado e pode conter falhas.
 
 ## Como usar
 

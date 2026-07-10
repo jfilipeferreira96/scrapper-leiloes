@@ -1,15 +1,5 @@
-/**
- * Leiloeira do Lena Scraper.
- *
- * Scrapes property auctions from www.leiloeiradolena.com.
- *
- * The site uses an AJAX-driven listing with server-side session pagination:
- *  1. POST the filter form to `lista_leiloes` → first batch + session cookie
- *  2. GET `lista_leiloes/` repeatedly → subsequent batches (session tracks cursor)
- *  3. Stop when the response is empty or a lone "."
- *
- * Uses BaseScraper for the uniform pipeline (listing → filter → enrich).
- */
+// AJAX-driven listing with server-side session pagination:
+// POST filter form → first batch + session cookie, then GET repeatedly for subsequent batches.
 
 import { BaseScraper } from "../base.scraper.js";
 import type { Property } from "../../models/property.js";
@@ -21,15 +11,8 @@ import {
 } from "./leiloeiradolena.parser.js";
 
 const BASE_URL = "https://www.leiloeiradolena.com";
-
-/** Endpoint that returns listing batches (POST for first, GET for the rest). */
 const LIST_ENDPOINT = `${BASE_URL}/lista_leiloes`;
 
-/**
- * Form fields sent on the initial POST.
- * `pesq_tipo_bem=2` filters to "Imóvel" (real estate). The site also exposes
- * other types (Veículos, Herança, etc.) but we focus on imóveis as requested.
- */
 const FILTER_FORM: Record<string, string> = {
   _mydivform: "box_lista_leiloes",
   pesq_subfamilia: "",
@@ -37,19 +20,14 @@ const FILTER_FORM: Record<string, string> = {
   pesq_concelho: "",
 };
 
-/** Safety cap on the number of pagination GETs. */
 const MAX_PAGES = 30;
 
 export class LeiloeiraDolenaScraper extends BaseScraper {
   readonly source = "leiloeiradolena";
 
-  /** Session cookie captured from the initial POST, reused for pagination GETs. */
   private cookieStr = "";
 
-  /**
-   * Override scrape() to filter out withdrawn ("Retirado") properties
-   * after enrichment, since status is only known from the detail page.
-   */
+  // Status ("Retirado") is only known from the detail page, so filter after enrichment
   async scrape(): Promise<Property[]> {
     const results = await super.scrape();
     const active = results.filter(
@@ -63,17 +41,10 @@ export class LeiloeiraDolenaScraper extends BaseScraper {
     return active;
   }
 
-  /**
-   * Collect all listings via session-based pagination.
-   *
-   * 1. POST the filter form → first batch + capture session cookie.
-   * 2. GET the endpoint repeatedly → subsequent batches.
-   * 3. Stop on empty / "." response.
-   */
   protected async collectListings(): Promise<Property[]> {
     const allProperties: Property[] = [];
 
-    // --- Phase 1: POST filter form (first batch + session) ---
+    // POST filter form → first batch + session cookie
     logger.info(`[${this.source}] POSTing filter form to ${LIST_ENDPOINT}`);
     let html: string;
     try {
@@ -89,7 +60,7 @@ export class LeiloeiraDolenaScraper extends BaseScraper {
     allProperties.push(...batch);
     logger.info(`[${this.source}] Batch 1: ${batch.length} listings`);
 
-    // --- Phase 2: GET subsequent batches ---
+    // GET subsequent batches (session tracks cursor)
     for (let page = 2; page <= MAX_PAGES; page++) {
       try {
         await delay(800);
@@ -112,9 +83,6 @@ export class LeiloeiraDolenaScraper extends BaseScraper {
     return allProperties;
   }
 
-  /**
-   * Enrich a single Property with detail page data.
-   */
   protected async enrichDetail(base: Property): Promise<Property> {
     const detailHtml = await fetchPage(base.url);
     return parseLeiloeiraDolenaDetail(detailHtml, base);

@@ -1,15 +1,3 @@
-/**
- * Leilostar Scraper
- *
- * Scrapes property auction data from leilostar.pt.
- *
- * Uses BaseScraper's template-method pipeline:
- *  1. collectListings() → fetch listing pages, parse property cards
- *  2. enrichDetail()    → fetch detail page, merge enriched data
- *
- * No session cookies needed — standard PHP site.
- */
-
 import type { Property } from "../../models/property.js";
 import { BaseScraper } from "../base.scraper.js";
 import { logger } from "../../utils/logger.js";
@@ -25,18 +13,12 @@ const LISTING_PATH = "/index.php?page=bem_list";
 export class LeilostarScraper extends BaseScraper {
   readonly source = "leilostar";
 
-  /** Listing items stored during collectListings for use in enrichDetail. */
   private listingItems = new Map<string, ListingItem>();
 
-  /**
-   * Fetch all listing pages and collect property cards.
-   * Pagination via ?pn={page} parameter.
-   */
   protected async collectListings(): Promise<Property[]> {
     const allItems: ListingItem[] = [];
     let totalPages = 1;
 
-    // First page
     const firstUrl = `${BASE_URL}${LISTING_PATH}`;
     logger.info(`[${this.source}] Fetching listing page 1: ${firstUrl}`);
 
@@ -50,7 +32,6 @@ export class LeilostarScraper extends BaseScraper {
       `[${this.source}] Page 1: ${firstItems.length} items (total pages: ${totalPages})`
     );
 
-    // Remaining pages
     for (let page = 2; page <= totalPages; page++) {
       try {
         await this.delay(this.DETAIL_DELAY_MS);
@@ -75,7 +56,6 @@ export class LeilostarScraper extends BaseScraper {
       }
     }
 
-    // Store for enrichment phase + convert to Property[]
     const properties: Property[] = [];
     for (const item of allItems) {
       this.listingItems.set(item.id, item);
@@ -85,9 +65,6 @@ export class LeilostarScraper extends BaseScraper {
     return properties;
   }
 
-  /**
-   * Fetch the detail page and merge enriched data.
-   */
   protected async enrichDetail(base: Property): Promise<Property> {
     const listing = this.listingItems.get(base.externalId);
     if (!listing) {
@@ -101,14 +78,12 @@ export class LeilostarScraper extends BaseScraper {
     return {
       ...base,
       ...enriched,
-      // Keep source/externalId/url from base (enriched doesn't have them)
       source: base.source,
       externalId: base.externalId,
       url: base.url,
     };
   }
 
-  /** Convert a ListingItem to a basic Property object. */
   private listingItemToProperty(item: ListingItem): Property {
     return {
       source: "leilostar",

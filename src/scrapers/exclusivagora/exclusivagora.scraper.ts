@@ -7,9 +7,6 @@ export class ExclusivagoraScraper extends BaseScraper {
   readonly source = 'exclusivagora';
   private readonly baseUrl = 'https://www.exclusivagora.com/?page=vendas';
 
-  /**
-   * Collect all listings from the main page
-   */
   protected async collectListings(): Promise<Property[]> {
     logger.info(`Fetching exclusivagora listings from ${this.baseUrl}`);
     
@@ -25,15 +22,12 @@ export class ExclusivagoraScraper extends BaseScraper {
       location: listing.location,
       url: listing.detailUrl,
       images: listing.image ? [listing.image] : [],
-      price: 0, // Will be enriched from detail page
+      price: 0, // Enriched from detail page
       auctionType: listing.auctionType,
       status: 'active'
     }));
   }
 
-  /**
-   * Enrich a property with details from its detail page
-   */
   protected async enrichDetail(property: Property): Promise<Property> {
     if (!property.url) {
       return property;
@@ -50,16 +44,12 @@ export class ExclusivagoraScraper extends BaseScraper {
         return property;
       }
 
-      // Determine status from countdown
       const status = parseStatus(detail.countdown);
 
-      // Combine description and notes
       let finalDescription = detail.description;
       if (detail.notes) {
         finalDescription += `\n\nNotas:\n${detail.notes}`;
       }
-
-      // Add documents to description
       if (detail.documents.length > 0) {
         finalDescription += '\n\nDocumentos:\n' + detail.documents.map(d => `- ${d}`).join('\n');
       }

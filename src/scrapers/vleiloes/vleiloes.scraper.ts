@@ -1,14 +1,4 @@
-/**
- * VLeiloes Scraper.
- *
- * Scrapes 4 auction types via the ?tipo=N query parameter:
- *   tipo=2 → Leilão Electrónico
- *   tipo=1 → Leilão Presencial
- *   tipo=5 → Negociação
- *   tipo=6 → Carta Fechada
- *
- * Uses BaseScraper for the uniform pipeline (listing → filter → enrich).
- */
+// Auction types via ?tipo=N: 2=Electrónico, 1=Presencial, 5=Negociação, 6=Carta Fechada
 
 import { BaseScraper } from "../base.scraper.js";
 import type { Property } from "../../models/property.js";
@@ -21,19 +11,12 @@ import {
 } from "./vleiloes.parser.js";
 
 const BASE_URL = "https://www.vleiloes.com";
-
-/** Auction type params to scrape (?tipo=N). */
 const AUCTION_TYPE_PARAMS = [2, 1, 5, 6];
-
-/** Max number of listing pages to fetch per auction type. */
 const MAX_PAGES = 20;
 
 export class VLeiloesScraper extends BaseScraper {
   readonly source = "vleiloes";
 
-  /**
-   * Collect listings from all auction types, handling pagination.
-   */
   protected async collectListings(): Promise<Property[]> {
     const allProperties: Property[] = [];
 
@@ -57,9 +40,6 @@ export class VLeiloesScraper extends BaseScraper {
     return allProperties;
   }
 
-  /**
-   * Collect a single auction type, iterating pages until empty.
-   */
   private async collectType(
     tipo: number,
     auctionType: string
@@ -77,12 +57,12 @@ export class VLeiloesScraper extends BaseScraper {
         const pageProps = parseVLeiloesListing(html, auctionType);
 
         if (pageProps.length === 0) {
-          break; // No more results
+          break;
         }
 
         properties.push(...pageProps);
 
-        // If fewer than expected items returned, assume last page.
+        // Fewer than 5 items means we've hit the last page
         if (pageProps.length < 5) {
           break;
         }
@@ -95,9 +75,6 @@ export class VLeiloesScraper extends BaseScraper {
     return properties;
   }
 
-  /**
-   * Enrich a single Property with detail page data.
-   */
   protected async enrichDetail(base: Property): Promise<Property> {
     const detailHtml = await fetchPage(base.url);
     return parseVLeiloesDetail(detailHtml, base);

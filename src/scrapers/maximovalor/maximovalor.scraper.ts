@@ -5,7 +5,6 @@ import { parseMaximovalorListing, parseMaximovalorDetail, extractPagination } fr
 
 const BASE_URL = 'https://www.maximovalor.pt';
 
-// 4 auction types to scrape
 const AUCTION_TYPES = [
   'leiloes-presenciais',
   'leiloes-eletronicos',
@@ -13,15 +12,12 @@ const AUCTION_TYPES = [
   'negociacao-particular',
 ];
 
-// Filter parameters for Imóveis (categoria=2)
+// categoria=2 filters to Imóveis
 const FILTER_PARAMS = '?titulo=&categoria=2&distrito=&concelho=&freguesia=';
 
 export class MaximovalorScraper extends BaseScraper {
   readonly source = 'maximovalor';
 
-  /**
-   * Collect listings from all 4 auction types with pagination.
-   */
   protected async collectListings(): Promise<Property[]> {
     const allProperties: Property[] = [];
 
@@ -34,10 +30,8 @@ export class MaximovalorScraper extends BaseScraper {
           const properties = parseMaximovalorListing(html, auctionType);
           allProperties.push(...properties);
           
-          // Extract next page URL
           const nextUrl = extractPagination(html, currentUrl);
           
-          // Add delay between pagination requests
           if (nextUrl) {
             await this.delay(500);
           }
@@ -52,9 +46,6 @@ export class MaximovalorScraper extends BaseScraper {
     return allProperties;
   }
 
-  /**
-   * Enrich a single Property with detail page data.
-   */
   protected async enrichDetail(base: Property): Promise<Property> {
     const detailHtml = await fetchPage(base.url);
     const detail = parseMaximovalorDetail(detailHtml, base.url);

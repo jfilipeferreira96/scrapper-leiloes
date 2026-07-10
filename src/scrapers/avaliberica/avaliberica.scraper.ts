@@ -1,14 +1,4 @@
-/**
- * Avaliberica Scraper
- *
- * Scrapes property auction data from avaliberica.pt.
- *
- * Two-phase approach:
- *  1. Listing pages (results-page.php) → collect all sale URLs + metadata
- *  2. Detail pages (auction-list.php?id=XXX) → aggregate verba data per sale
- *
- * Each sale becomes ONE Property record with aggregated verba information.
- */
+// Two-phase: listing pages collect sale URLs, then detail pages enrich each sale.
 
 import type { Property } from "../../models/property.js";
 import { fetchPage, fetchPageWithCookies, delay } from "../../utils/http.js";
@@ -28,15 +18,12 @@ const DETAIL_DELAY_MS = 1500;
 export class AvalibericaScraper {
   readonly source = "avaliberica";
 
-  /** Session cookie (PHPSESSID) captured from the first listing page request. */
   private cookieStr = "";
 
   async scrape(): Promise<Property[]> {
-    // ── Phase 1: Collect all sales from listing pages ──────────────────────
     const allSales = await this.collectAllSales();
     logger.info(`[${this.source}] Found ${allSales.length} sales across listing pages`);
 
-    // ── Phase 2: Enrich each sale with detail page data ────────────────────
     const properties: Property[] = [];
 
     for (let i = 0; i < allSales.length; i++) {
@@ -49,7 +36,6 @@ export class AvalibericaScraper {
         properties.push(property);
       } catch (error) {
         logger.warn(`[${this.source}] Error enriching sale ${sale.id}:`, error);
-        // Keep the listing-level property even if detail enrichment fails
         properties.push(this.saleToProperty(sale));
       }
     }
@@ -58,12 +44,11 @@ export class AvalibericaScraper {
     return properties;
   }
 
-  /** Fetch all listing pages and collect sale links. Captures session cookie. */
   private async collectAllSales(): Promise<SaleLink[]> {
     const allSales: SaleLink[] = [];
     let totalPages = 1;
 
-    // First page: use fetchPageWithCookies to capture PHPSESSID
+    // First page captures the PHPSESSID cookie
     const firstUrl = `${BASE_URL}${LISTING_PATH}&page=1`;
     logger.info(`[${this.source}] Fetching listing page 1: ${firstUrl}`);
 
@@ -77,7 +62,6 @@ export class AvalibericaScraper {
 
     logger.info(`[${this.source}] Page 1: ${firstSales.length} sales (total pages: ${totalPages})`);
 
-    // Remaining pages: use cookie for consistency
     for (let page = 2; page <= totalPages; page++) {
       try {
         await delay(DETAIL_DELAY_MS);
@@ -103,17 +87,14 @@ export class AvalibericaScraper {
     return allSales;
   }
 
-  /** Fetch detail pages for a sale and aggregate verba data. */
   private async enrichSale(sale: SaleLink): Promise<Property> {
-    // Request 20 items per page to minimize HTTP requests
+    // 20 items per page to minimize HTTP requests
     const detailBase = `${BASE_URL}/auction-list.php?id=${sale.id}&session=${sale.session}&results=20`;
 
-    // First detail page (with session cookie)
     const firstHtml = await fetchPage(`${detailBase}&page=1`, this.cookieStr);
     const enriched = parseAvalibericaDetail(firstHtml, sale);
     const detailPages = countDetailPages(firstHtml);
 
-    // If there are more detail pages, fetch them and merge verba data
     if (detailPages > 1) {
       logger.info(`[${this.source}] Sale ${sale.id} has ${detailPages} detail pages`);
 
@@ -123,7 +104,6 @@ export class AvalibericaScraper {
           const html = await fetchPage(`${detailBase}&page=${page}`, this.cookieStr);
           const pageData = parseAvalibericaDetail(html, sale);
 
-          // Merge: add more images, recalculate totals
           if (pageData.images) {
             enriched.images = [...new Set([...(enriched.images || []), ...pageData.images])];
           }
@@ -142,7 +122,6 @@ export class AvalibericaScraper {
     return this.saleToProperty(sale, enriched);
   }
 
-  /** Convert SaleLink + enriched data into a Property object. */
   private saleToProperty(sale: SaleLink, enriched?: Partial<Property>): Property {
     return {
       source: "avaliberica",
