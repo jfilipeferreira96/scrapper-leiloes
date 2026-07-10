@@ -14,6 +14,9 @@ import { CParaisoScraper } from "./cparaiso/cparaiso.scraper.js";
 import { ViaserumosScraper } from "./viaserumos/viaserumos.scraper.js";
 import { MaximovalorScraper } from "./maximovalor/maximovalor.scraper.js";
 import { CaixaimobiliarioScraper } from "./caixaimobiliario/caixaimobiliario.scraper.js";
+import { ImolorienteScraper } from "./imoloriente/imoloriente.scraper.js";
+import { AleiloeiraforenseScraper } from "./aleiloeiraforense/aleiloeiraforense.scraper.js";
+import { LeilosilScraper } from "./leilosil/leilosil.scraper.js";
 import type { Scraper } from "./base.scraper.js";
 import { config } from "../config/index.js";
 
@@ -34,6 +37,9 @@ export const SCRAPERS: Record<string, Scraper> = {
   viaserumos: new ViaserumosScraper() as Scraper,
   maximovalor: new MaximovalorScraper() as Scraper,
   caixaimobiliario: new CaixaimobiliarioScraper() as Scraper,
+  imoloriente: new ImolorienteScraper() as Scraper,
+  aleiloeiraforense: new AleiloeiraforenseScraper() as Scraper,
+  leilosil: new LeilosilScraper() as Scraper,
 };
 
 export function getActiveScrapers(): Scraper[] {

@@ -7,6 +7,10 @@ export const config = {
     process.env.USER_AGENT ||
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
   requestTimeout: parseInt(process.env.REQUEST_TIMEOUT || "30000", 10),
+  // Per-scraper timeout in milliseconds. If a scraper exceeds this duration,
+  // it is aborted and the pipeline moves on to the next scraper.
+  // Default: 300000ms (5 minutes).
+  scraperTimeoutMs: parseInt(process.env.SCRAPER_TIMEOUT_MS || "300000", 10),
   activeScrapers: (process.env.ACTIVE_SCRAPERS || "")
     .split(",")
     .map((s) => s.trim()),
