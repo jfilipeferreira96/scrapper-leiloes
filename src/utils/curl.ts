@@ -49,7 +49,8 @@ export class CurlHelper {
    */
   static get(url: string, extraArgs: string[] = []): string {
     const args = [...this.DEFAULT_ARGS, ...extraArgs, url];
-    const cmd = `curl ${args.map(a => a.includes(' ') ? `'${a}'` : a).join(' ')}`;
+    // Quote ALL arguments to handle special characters like parentheses, spaces, etc.
+    const cmd = `curl ${args.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(' ')}`;
 
     logger.debug(`[CurlHelper] GET ${url}`);
 
@@ -76,8 +77,24 @@ export class CurlHelper {
    */
   static getJson<T = any>(url: string, extraArgs: string[] = []): T {
     const jsonArgs = ['-H', 'Accept: application/json'];
-    const body = this.get(url, [...jsonArgs, ...extraArgs]);
-    return JSON.parse(body) as T;
+    const args = [...this.DEFAULT_ARGS, ...jsonArgs, ...extraArgs, url];
+    // Quote ALL arguments to handle special characters
+    const cmd = `curl ${args.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(' ')}`;
+
+    logger.debug(`[CurlHelper] GET JSON ${url}`);
+
+    try {
+      const result = execSync(cmd, {
+        encoding: 'utf-8',
+        timeout: 30000,
+        maxBuffer: 10 * 1024 * 1024, // 10MB
+      });
+      return JSON.parse(result) as T;
+    } catch (err: any) {
+      const stderr = err.stderr?.toString() || err.message;
+      logger.error(`[CurlHelper] Failed to fetch JSON ${url}: ${stderr}`);
+      throw new Error(`Curl failed for ${url}: ${stderr}`);
+    }
   }
 
   /**
@@ -94,7 +111,8 @@ export class CurlHelper {
       '-A', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       url,
     ];
-    const cmd = `curl ${args.map(a => a.includes(' ') ? `'${a}'` : a).join(' ')}`;
+    // Quote ALL arguments to handle special characters
+    const cmd = `curl ${args.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(' ')}`;
 
     try {
       const result = execSync(cmd, { encoding: 'utf-8', timeout: 30000 });
@@ -118,10 +136,33 @@ export class CurlHelper {
     body: string;
   } {
     const dumpArgs = ['-D', '-', ...extraArgs];
-    const body = this.get(url, dumpArgs);
+    const args = [...this.DEFAULT_ARGS, ...dumpArgs, url];
+    // Quote ALL arguments to handle special characters
+    const cmd = `curl ${args.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(' ')}`;
 
+    logger.debug(`[CurlHelper] GET with headers ${url}`);
+
+    try {
+      const result = execSync(cmd, {
+        encoding: 'utf-8',
+        timeout: 30000,
+        maxBuffer: 10 * 1024 * 1024, // 10MB
+      });
+      return this.parseHeadersAndBody(result);
+    } catch (err: any) {
+      const stderr = err.stderr?.toString() || err.message;
+      logger.error(`[CurlHelper] Failed to fetch with headers ${url}: ${stderr}`);
+      throw new Error(`Curl failed for ${url}: ${stderr}`);
+    }
+  }
+
+  private static parseHeadersAndBody(result: string): {
+    status: number;
+    headers: Record<string, string>;
+    body: string;
+  } {
     // Split headers from body
-    const headerBodySplit = body.split('\r\n\r\n');
+    const headerBodySplit = result.split('\r\n\r\n');
     const headerSection = headerBodySplit[0] || '';
     const responseBody = headerBodySplit.slice(1).join('\r\n\r\n');
 

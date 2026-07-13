@@ -1,9 +1,12 @@
 import { BaseScraper } from "../base.scraper.js";
 import type { Property } from "../../models/property.js";
-import { fetchPage } from "../../utils/http.js";
+import { delay } from "../../utils/http.js";
+import { CurlHelper } from "../../utils/curl.js";
+import { logger } from "../../utils/logger.js";
 import { parseOneFixListing, parseOneFixDetail } from "./onefix.parser.js";
 
 const ONEFIX_URL = "https://www.onefix-leiloeiros.pt/tipo_verbas/1/Imoveis";
+const MAX_PAGES = 10;
 
 export class OneFixScraper extends BaseScraper {
   readonly source = "onefix";
@@ -12,24 +15,50 @@ export class OneFixScraper extends BaseScraper {
   protected async collectListings(): Promise<Property[]> {
     const allProperties: Property[] = [];
     let currentUrl: string | null = ONEFIX_URL;
+    let pageCount = 0;
 
-    while (currentUrl) {
+    while (currentUrl && pageCount < MAX_PAGES) {
+      pageCount++;
       try {
-        const html = await fetchPage(currentUrl);
+        logger.info(`[${this.source}] Fetching listing page ${pageCount}: ${currentUrl}`);
+        const html = CurlHelper.get(currentUrl);
         const { properties, nextUrl } = parseOneFixListing(html);
         allProperties.push(...properties);
+        logger.info(`[${this.source}] Page ${pageCount}: ${properties.length} properties (total: ${allProperties.length})`);
+        
+        // Stop pagination if no properties found (end of results)
+        if (properties.length === 0) {
+          logger.info(`[${this.source}] No properties found on page ${pageCount}, stopping pagination`);
+          break;
+        }
+        
         currentUrl = nextUrl ? `https://www.onefix-leiloeiros.pt${nextUrl}` : null;
+        
+        // Add delay between listing pages to avoid rate limiting
+        if (currentUrl) {
+          await delay(1500);
+        }
       } catch (error) {
-        console.error(`[${this.source}] Error loading page ${currentUrl}:`, error);
+        logger.error(`[${this.source}] Error loading page ${currentUrl}:`, error);
         currentUrl = null;
       }
+    }
+
+    if (pageCount >= MAX_PAGES) {
+      logger.warn(`[${this.source}] Reached maximum page limit (${MAX_PAGES}), stopping pagination`);
     }
 
     return allProperties;
   }
 
   protected async enrichDetail(base: Property): Promise<Property> {
-    const detailHtml = await fetchPage(base.url);
-    return parseOneFixDetail(detailHtml, base);
+    try {
+      logger.debug(`[${this.source}] Fetching detail page: ${base.url}`);
+      const detailHtml = CurlHelper.get(base.url);
+      return parseOneFixDetail(detailHtml, base);
+    } catch (error) {
+      logger.warn(`[${this.source}] Error enriching ${base.url}:`, error);
+      return base;
+    }
   }
 }
