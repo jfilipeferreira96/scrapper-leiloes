@@ -114,6 +114,11 @@
     imoloriente: '#0891b2',
     aleiloeiraforense: '#65a30d',
     leilosil: '#e11d48',
+    capital: '#0d9488',
+    euroestates: '#9333ea',
+    vamgo: '#ea580c',
+    leilovalor: '#2563eb',
+    eleiloes: '#16a34a',
   };
 
   const fmtPrice = (val) => {

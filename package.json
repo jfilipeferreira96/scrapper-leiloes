@@ -13,7 +13,12 @@
     "test:leilosoc": "tsx scripts/test-leilosoc-e2e.ts",
     "test:onefix": "tsx scripts/test-onefix-e2e.ts",
     "test:bidleiloeira": "tsx scripts/test-bidleiloeira-e2e.ts",
-    "test:lcpremium": "tsx scripts/test-lcpremium-e2e.ts"
+    "test:lcpremium": "tsx scripts/test-lcpremium-e2e.ts",
+    "test:capital": "tsx scripts/test-capital-e2e.ts",
+    "test:euroestates": "tsx scripts/test-euroestates-e2e.ts",
+    "test:vamgo": "tsx scripts/test-vamgo-e2e.ts",
+    "test:leilovalor": "tsx scripts/test-leilovalor-e2e.ts",
+    "test:eleiloes": "tsx scripts/test-eleiloes-e2e.ts"
   },
   "dependencies": {
     "axios": "^1.7.0",

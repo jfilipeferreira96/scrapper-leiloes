@@ -48,6 +48,10 @@ Tudo está em [`src/config/index.ts`](src/config/index.ts). Não há `.env`, edi
 - `scraperTimeoutMs`: tempo máximo por scraper (default: 300000 = 5 min)
 - `requestTimeout`: timeout dos pedidos HTTP (default: 30000)
 
+## Leiloeiras
+
+24 fontes ativas: `onefix`, `bidleiloeira`, `lcpremium`, `leilosoc`, `avaliberica`, `leilostar`, `inlex`, `vleiloes`, `leiloeiradolena`, `solventium`, `exclusivagora`, `leiloatrium`, `cparaiso`, `viaserumos`, `maximovalor`, `caixaimobiliario`, `imoloriente`, `aleiloeiraforense`, `leilosil`, `capital`, `euroestates`, `vamgo`, `leilovalor` e `eleiloes`.
+
 ## Zonas de Interesse
 
 As zonas são configuradas no viewer, não no código. Edita [`viewer/filters.js`](viewer/filters.js) para definir distritos e localizações. As seleções do utilizador ficam guardadas no localStorage do browser.

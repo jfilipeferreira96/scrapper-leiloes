@@ -17,6 +17,11 @@ import { CaixaimobiliarioScraper } from "./caixaimobiliario/caixaimobiliario.scr
 import { ImolorienteScraper } from "./imoloriente/imoloriente.scraper.js";
 import { AleiloeiraforenseScraper } from "./aleiloeiraforense/aleiloeiraforense.scraper.js";
 import { LeilosilScraper } from "./leilosil/leilosil.scraper.js";
+import { CapitalScraper } from "./capital/capital.scraper.js";
+import { EuroestatesScraper } from "./euroestates/euroestates.scraper.js";
+import { VamgoScraper } from "./vamgo/vamgo.scraper.js";
+import { LeilovalorScraper } from "./leilovalor/leilovalor.scraper.js";
+import { EleiloesScraper } from "./eleiloes/eleiloes.scraper.js";
 import type { Scraper } from "./base.scraper.js";
 import { config } from "../config/index.js";
 
@@ -40,6 +45,11 @@ export const SCRAPERS: Record<string, Scraper> = {
   imoloriente: new ImolorienteScraper() as Scraper,
   aleiloeiraforense: new AleiloeiraforenseScraper() as Scraper,
   leilosil: new LeilosilScraper() as Scraper,
+  capital: new CapitalScraper() as Scraper,
+  euroestates: new EuroestatesScraper() as Scraper,
+  vamgo: new VamgoScraper() as Scraper,
+  leilovalor: new LeilovalorScraper() as Scraper,
+  eleiloes: new EleiloesScraper() as Scraper,
 };
 
 export function getActiveScrapers(): Scraper[] {
