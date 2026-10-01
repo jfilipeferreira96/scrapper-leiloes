@@ -27,6 +27,7 @@ export interface PropertyRecord extends Property {
   previousPrice?: number;
   firstSeenAt: Date;
   lastSeenAt: Date;
+  removedAt?: Date;
 }
 
 export type ChangeType =

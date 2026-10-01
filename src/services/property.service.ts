@@ -8,13 +8,10 @@ import { propertyKey } from "../models/property.js";
 import type { HistoryEntry } from "../database/excel.service.js";
 import { logger } from "../utils/logger.js";
 
-/**
- * Compares scraped properties with existing records in the Excel DB.
- * Returns: list of diffs + updated records list + history entries.
- */
 export function diffProperties(
   scraped: Property[],
-  existing: Map<string, PropertyRecord>
+  existing: Map<string, PropertyRecord>,
+  succeededSources: Set<string>
 ): {
   diffs: PropertyDiff[];
   updatedRecords: PropertyRecord[];
@@ -26,14 +23,12 @@ export function diffProperties(
   const history: HistoryEntry[] = [];
   const seenKeys = new Set<string>();
 
-  // 1. Process properties from the current scrape
   for (const prop of scraped) {
     const key = propertyKey(prop.source, prop.externalId);
     seenKeys.add(key);
     const existingRec = existing.get(key);
 
     if (!existingRec) {
-      // NEW
       const newRecord: PropertyRecord = {
         ...prop,
         key,
@@ -50,7 +45,6 @@ export function diffProperties(
         source: prop.source,
       });
     } else {
-      // ALREADY EXISTS — check for changes
       const priceChanged = existingRec.price !== prop.price;
       const statusChanged =
         existingRec.status !== prop.status && prop.status !== undefined;
@@ -61,6 +55,7 @@ export function diffProperties(
         key,
         previousPrice: priceChanged ? existingRec.price : existingRec.previousPrice,
         lastSeenAt: now,
+        removedAt: undefined,
       };
       updatedRecords.push(updatedRec);
 
@@ -71,7 +66,7 @@ export function diffProperties(
           timestamp: now.toISOString(),
           key,
           event: "PRICE_CHANGE",
-          detail: `${existingRec.price} → ${prop.price}`,
+          detail: `${existingRec.price} -> ${prop.price}`,
           source: prop.source,
         });
       } else if (statusChanged) {
@@ -80,7 +75,7 @@ export function diffProperties(
           timestamp: now.toISOString(),
           key,
           event: "STATUS_CHANGE",
-          detail: `${existingRec.status} → ${prop.status}`,
+          detail: `${existingRec.status} -> ${prop.status}`,
           source: prop.source,
         });
       }
@@ -94,23 +89,26 @@ export function diffProperties(
     }
   }
 
-  // 2. Detect removed properties (existed but not in current scrape)
   for (const [key, rec] of existing) {
-    if (!seenKeys.has(key)) {
-      const removedRec: PropertyRecord = {
-        ...rec,
-        lastSeenAt: now,
-      };
-      updatedRecords.push(removedRec);
-      diffs.push({ record: removedRec, changeType: "REMOVED" });
-      history.push({
-        timestamp: now.toISOString(),
-        key,
-        event: "REMOVED",
-        detail: `Not found in latest scrape`,
-        source: rec.source,
-      });
+    if (seenKeys.has(key)) continue;
+
+    const sourceOk = succeededSources.has(rec.source);
+    const alreadyRemoved = rec.removedAt !== undefined;
+    if (!sourceOk || alreadyRemoved) {
+      updatedRecords.push(rec);
+      continue;
     }
+
+    const removedRec: PropertyRecord = { ...rec, removedAt: now };
+    updatedRecords.push(removedRec);
+    diffs.push({ record: removedRec, changeType: "REMOVED" });
+    history.push({
+      timestamp: now.toISOString(),
+      key,
+      event: "REMOVED",
+      detail: `Not found in latest scrape`,
+      source: rec.source,
+    });
   }
 
   const summary = {

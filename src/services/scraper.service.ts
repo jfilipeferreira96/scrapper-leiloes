@@ -9,6 +9,11 @@ interface ScraperFailure {
   reason: string;
 }
 
+export interface ScrapeRun {
+  properties: Property[];
+  succeededSources: Set<string>;
+}
+
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
@@ -23,9 +28,10 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): 
   });
 }
 
-export async function runAllScrapers(): Promise<Property[]> {
+export async function runAllScrapers(): Promise<ScrapeRun> {
   const scrapers = getActiveScrapers();
-  const allProperties: Property[] = [];
+  const properties: Property[] = [];
+  const succeededSources = new Set<string>();
   const failures: ScraperFailure[] = [];
 
   logger.info(`Starting ${scrapers.length} active scrapers`);
@@ -39,7 +45,8 @@ export async function runAllScrapers(): Promise<Property[]> {
         config.scraperTimeoutMs,
         scraper.source,
       );
-      allProperties.push(...props);
+      properties.push(...props);
+      succeededSources.add(scraper.source);
       const elapsed = ((Date.now() - startedAt) / 1000).toFixed(1);
       logger.info(`[scraper-service] ${scraper.source}: ${props.length} properties (${elapsed}s)`);
     } catch (error) {
@@ -57,6 +64,6 @@ export async function runAllScrapers(): Promise<Property[]> {
     }
   }
 
-  logger.info(`Total collected: ${allProperties.length} properties`);
-  return allProperties;
+  logger.info(`Total collected: ${properties.length} properties`);
+  return { properties, succeededSources };
 }

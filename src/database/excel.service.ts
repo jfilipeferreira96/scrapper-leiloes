@@ -5,21 +5,41 @@ import type { PropertyRecord, PropertyDiff } from "../models/property.js";
 import { config } from "../config/index.js";
 import { logger } from "../utils/logger.js";
 
-function formatDate(date: Date | undefined | null): string {
-  if (!date) return "";
-
-  const d = new Date(date);
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
-  const hours = String(d.getHours()).padStart(2, "0");
-  const minutes = String(d.getMinutes()).padStart(2, "0");
-  const seconds = String(d.getSeconds()).padStart(2, "0");
-
-  return `${day}-${month}-${year} ${hours}:${minutes}:${seconds}`;
+function pad(n: number): string {
+  return String(n).padStart(2, "0");
 }
 
-// Column definitions for the Properties sheet.
+function formatDate(date: Date | undefined | null): string {
+  if (!date) return "";
+  const d = new Date(date);
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+    `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  );
+}
+
+function parseExcelDate(raw: unknown): Date | undefined {
+  if (raw instanceof Date) return raw;
+  if (!raw) return undefined;
+  const s = String(raw).trim();
+  if (!s) return undefined;
+
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (iso) {
+    const [, y, m, d, h, min, sec] = iso;
+    return new Date(+y, +m - 1, +d, +h, +min, sec ? +sec : 0);
+  }
+
+  const legacy = s.match(/^(\d{2})-(\d{2})-(\d{4})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (legacy) {
+    const [, d, m, y, h, min, sec] = legacy;
+    return new Date(+y, +m - 1, +d, +h, +min, sec ? +sec : 0);
+  }
+
+  const parsed = new Date(s);
+  return isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
 const PROPERTY_COLUMNS = [
   { header: "Fonte", key: "A", width: 12 },
   { header: "Título", key: "B", width: 40 },
@@ -45,9 +65,9 @@ const PROPERTY_COLUMNS = [
   { header: "Chave", key: "V", width: 22 },
   { header: "ID Externo", key: "W", width: 15 },
   { header: "Tipo Leilão", key: "X", width: 18 },
+  { header: "Removido Em", key: "Y", width: 22 },
 ] as const;
 
-// Highlight colors
 const COLORS = {
   NEW: { fill: "C6EFCE", font: "006100" },
   PRICE_CHANGE: { fill: "FFEB9C", font: "9C6500" },
@@ -62,6 +82,40 @@ export interface HistoryEntry {
   source: string;
 }
 
+function recordToRowArray(record: PropertyRecord, includeRemoved: boolean): (string | number)[] {
+  
+  const base: (string | number)[] = [
+    record.source,
+    record.title,
+    record.price,
+    record.openingValue ?? "",
+    record.minSaleValue ?? "",
+    record.currentBid ?? "",
+    record.previousPrice ?? "",
+    record.location,
+    record.district ?? "",
+    record.municipality ?? "",
+    record.parish ?? "",
+    record.area ?? "",
+    record.rooms ?? "",
+    record.status ?? "",
+    record.url,
+    record.images.join(";"),
+    record.latitude ?? "",
+    record.longitude ?? "",
+    formatDate(record.publishedAt),
+    formatDate(record.firstSeenAt),
+    formatDate(record.lastSeenAt),
+    record.key,
+    record.externalId,
+    record.auctionType ?? "",
+  ];
+
+  base.push(includeRemoved ? formatDate(record.removedAt) : "");
+  
+  return base;
+}
+
 export class ExcelService {
   public filePath: string;
 
@@ -69,15 +123,11 @@ export class ExcelService {
     this.filePath = filePath || config.excelPath;
   }
 
-  /**
-   * Reads all existing records from the Propriedades sheet.
-   * Returns an empty Map if the file does not exist yet.
-   */
   async readProperties(): Promise<Map<string, PropertyRecord>> {
     const map = new Map<string, PropertyRecord>();
 
     if (!fs.existsSync(this.filePath)) {
-      logger.info("Excel DB does not exist — will be created on first run");
+      logger.info("Excel DB does not exist, will be created on first run");
       return map;
     }
 
@@ -85,14 +135,13 @@ export class ExcelService {
     await workbook.xlsx.readFile(this.filePath);
     let sheet = workbook.getWorksheet("Propriedades");
     if (!sheet) {
-      // Try old "Properties" name for backward compatibility
       const oldSheet = workbook.getWorksheet("Properties");
       if (!oldSheet) return map;
       sheet = oldSheet;
     }
 
     sheet.eachRow((row, rowNumber) => {
-      if (rowNumber === 1) return; // skip header
+      if (rowNumber === 1) return;
       const values = row.values as any[];
       const record: PropertyRecord = {
         source: values[1],
@@ -113,12 +162,13 @@ export class ExcelService {
         images: values[16] ? String(values[16]).split(";") : [],
         latitude: values[17] ? Number(values[17]) : undefined,
         longitude: values[18] ? Number(values[18]) : undefined,
-        publishedAt: values[19] ? new Date(values[19]) : undefined,
-        firstSeenAt: values[20] ? new Date(values[20]) : new Date(),
-        lastSeenAt: values[21] ? new Date(values[21]) : new Date(),
+        publishedAt: parseExcelDate(values[19]),
+        firstSeenAt: parseExcelDate(values[20]) ?? new Date(),
+        lastSeenAt: parseExcelDate(values[21]) ?? new Date(),
         key: values[22],
         externalId: values[23],
         auctionType: values[24] ?? undefined,
+        removedAt: parseExcelDate(values[25]),
       };
       map.set(record.key, record);
     });
@@ -127,23 +177,17 @@ export class ExcelService {
     return map;
   }
 
-  /**
-   * Writes the full state: Propriedades (updated), Novos (this run only),
-   * Histórico (append with full property data). Applies row highlighting.
-   */
   async writeResults(
     allRecords: PropertyRecord[],
     diffs: PropertyDiff[],
     historyEntries: HistoryEntry[],
     isFirstRun: boolean
   ): Promise<void> {
-    // Ensure the output directory exists
     const dir = path.dirname(this.filePath);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
 
-    // Load existing workbook (to preserve Histórico) or create a new one
     const workbook = new ExcelJS.Workbook();
     if (fs.existsSync(this.filePath)) {
       await workbook.xlsx.readFile(this.filePath);
@@ -152,7 +196,6 @@ export class ExcelService {
     const oldNewSheet = workbook.getWorksheet("New");
     if (oldNewSheet) workbook.removeWorksheet(oldNewSheet.id);
 
-    // --- Sheet: Propriedades (full rewrite) ---
     let propSheet = workbook.getWorksheet("Propriedades");
     if (propSheet) workbook.removeWorksheet(propSheet.id);
     const oldPropSheet = workbook.getWorksheet("Properties");
@@ -168,43 +211,13 @@ export class ExcelService {
     const diffMap = new Map(diffs.map((d) => [d.record.key, d]));
 
     allRecords.forEach((record) => {
-      // Write as ARRAY so values are placed in the correct columns
-      // Order: all display columns first, then Chave and ID Externo at the end
-      const row = propSheet!.addRow([
-        record.source,
-        record.title,
-        record.price,
-        record.openingValue ?? "",
-        record.minSaleValue ?? "",
-        record.currentBid ?? "",
-        record.previousPrice ?? "",
-        record.location,
-        record.district ?? "",
-        record.municipality ?? "",
-        record.parish ?? "",
-        record.area ?? "",
-        record.rooms ?? "",
-        record.status ?? "",
-        record.url,
-        record.images.join(";"),
-        record.latitude ?? "",
-        record.longitude ?? "",
-        formatDate(record.publishedAt),
-        formatDate(record.firstSeenAt),
-        formatDate(record.lastSeenAt),
-        record.key,
-        record.externalId,
-        record.auctionType ?? "",
-      ]);
-      // Highlighting
+      const row = propSheet!.addRow(recordToRowArray(record, true));
       const diff = diffMap.get(record.key);
       if (diff) {
         this.applyHighlight(row, diff.changeType);
       }
     });
 
-    // --- Sheet: Novos (full rewrite — only new properties from this run)
-    // Skip if this is the first run (empty existing DB)
     let newSheet = workbook.getWorksheet("Novos");
     if (newSheet) workbook.removeWorksheet(newSheet.id);
     newSheet = workbook.addWorksheet("Novos");
@@ -215,45 +228,16 @@ export class ExcelService {
     newHeader.font = { bold: true };
 
     const newDiffs = diffs.filter((d) => d.changeType === "NEW");
-    // Skip "Novos" on first run (all properties are new — would duplicate Propriedades).
-    // On subsequent runs, only genuinely new properties appear.
     if (!isFirstRun) {
       newDiffs.forEach((d) => {
-        const r = d.record;
-        const row = newSheet!.addRow([
-          r.source,
-          r.title,
-          r.price,
-          r.openingValue ?? "",
-          r.minSaleValue ?? "",
-          r.currentBid ?? "",
-          r.previousPrice ?? "",
-          r.location,
-          r.district ?? "",
-          r.municipality ?? "",
-          r.parish ?? "",
-          r.area ?? "",
-          r.rooms ?? "",
-          r.status ?? "",
-          r.url,
-          r.images.join(";"),
-          r.latitude ?? "",
-          r.longitude ?? "",
-          formatDate(r.publishedAt),
-          formatDate(r.firstSeenAt),
-          formatDate(r.lastSeenAt),
-          r.key,
-          r.externalId,
-        ]);
+        const row = newSheet!.addRow(recordToRowArray(d.record, false));
         this.applyHighlight(row, "NEW");
       });
     }
 
-    // --- Sheet: Histórico (append with full property data) ---
     let histSheet = workbook.getWorksheet("Histórico");
     if (!histSheet) {
       histSheet = workbook.addWorksheet("Histórico");
-      // Use the same columns as Propriedades
       PROPERTY_COLUMNS.forEach((col) => {
         histSheet!.getColumn(col.key).width = col.width;
       });
@@ -261,45 +245,16 @@ export class ExcelService {
       histHeader.font = { bold: true };
     }
 
-    // Append history entries with full property data
+    const recordByKey = new Map(allRecords.map((r) => [r.key, r]));
     historyEntries.forEach((entry) => {
-      // Find the property record for this history entry
-      const record = allRecords.find((r) => r.key === entry.key);
+      const record = recordByKey.get(entry.key);
       if (!record) return;
 
-      const row = histSheet!.addRow([
-        record.source,
-        record.title,
-        record.price,
-        record.openingValue ?? "",
-        record.minSaleValue ?? "",
-        record.currentBid ?? "",
-        record.previousPrice ?? "",
-        record.location,
-        record.district ?? "",
-        record.municipality ?? "",
-        record.parish ?? "",
-        record.area ?? "",
-        record.rooms ?? "",
-        record.status ?? "",
-        record.url,
-        record.images.join(";"),
-        record.latitude ?? "",
-        record.longitude ?? "",
-        formatDate(record.publishedAt),
-        formatDate(record.firstSeenAt),
-        formatDate(record.lastSeenAt),
-        record.key,
-        record.externalId,
-      ]);
-      // Add event and detail as additional columns at the end
-      const eventCell = row.getCell(row.cellCount + 1);
-      eventCell.value = entry.event;
-      const detailCell = row.getCell(row.cellCount + 1);
-      detailCell.value = entry.detail;
+      const row = histSheet!.addRow(recordToRowArray(record, false));
+      row.getCell(26).value = entry.event;
+      row.getCell(27).value = entry.detail;
     });
 
-    // Reorder sheets: Novos, Propriedades, Histórico
     workbook.worksheets.sort((a, b) => {
       const order = ["Novos", "Propriedades", "Histórico"];
       return order.indexOf(a.name) - order.indexOf(b.name);

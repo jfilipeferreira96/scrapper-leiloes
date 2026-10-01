@@ -1,5 +1,4 @@
 import type { Property } from "../models/property.js";
-import { propertyKey } from "../models/property.js";
 import { ExcelService } from "../database/excel.service.js";
 import { runAllScrapers } from "./scraper.service.js";
 import { diffProperties } from "./property.service.js";
@@ -14,7 +13,7 @@ export interface MonitoringResult {
 export async function runMonitoring(): Promise<MonitoringResult> {
   logger.info("=== Starting monitoring run ===");
 
-  const current = await runAllScrapers();
+  const { properties: current, succeededSources } = await runAllScrapers();
   logger.info(`Scraped ${current.length} properties from active sources`);
 
   const excelService = new ExcelService();
@@ -22,13 +21,14 @@ export async function runMonitoring(): Promise<MonitoringResult> {
   const previous = Array.from(previousMap.values());
   logger.info(`Loaded ${previous.length} properties from previous run`);
 
-  const previousKeys = new Set(previous.map((p) => p.key || propertyKey(p.source, p.externalId)));
-  const newProperties = current.filter((p) => !previousKeys.has(propertyKey(p.source, p.externalId)));
-  logger.info(`Found ${newProperties.length} new properties`);
-
-  const { updatedRecords, diffs, history } = diffProperties(current, previousMap);
+  const { diffs, updatedRecords, history } = diffProperties(current, previousMap, succeededSources);
   await excelService.writeResults(updatedRecords, diffs, history, previous.length === 0);
   logger.info("Saved all properties to Excel");
+
+  const newProperties = diffs
+    .filter((d) => d.changeType === "NEW")
+    .map((d) => d.record);
+  logger.info(`Found ${newProperties.length} new properties`);
 
   logger.info("=== Monitoring run complete ===");
   return { newProperties, diffs };
