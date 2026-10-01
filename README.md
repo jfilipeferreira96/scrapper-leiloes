@@ -1,4 +1,4 @@
-# Leilões — Monitor de Imóveis
+# Monitor de Leilões
 
 Monitor de leilões imobiliários em Portugal. Scraping de várias plataformas, exportação para Excel e um viewer em HTML com filtros. Projeto pessoal para filtrar imóveis na minha zona. Serve o propósito, mas não é nada de elaborado e pode conter falhas.
 
@@ -13,10 +13,10 @@ No fim, abre `viewer/index.html` no browser.
 
 ## O que acontece quando corro `npm start`
 
-1. **Scrape** — cada scraper vai buscar os imóveis à sua plataforma (com timeout de 5 min por scraper — se um travar, salta para o próximo)
-2. **Diff** — compara com a execução anterior para encontrar imóveis novos
-3. **Excel** — guarda tudo em `data/properties.xlsx`
-4. **Viewer** — exporta `viewer/data.js` com os dados para o HTML
+1. **Scrape**: cada scraper vai buscar os imóveis à sua plataforma (timeout de 5 min por scraper; se um travar, salta para o próximo)
+2. **Diff**: compara com a execução anterior para encontrar imóveis novos
+3. **Excel**: guarda tudo em `data/properties.xlsx`
+4. **Viewer**: exporta `viewer/data.js` com os dados para o HTML
 
 ## Estrutura
 
@@ -25,7 +25,7 @@ src/
 ├── app.ts                  # entry point
 ├── config/index.ts         # configuração (user agent, timeouts, etc.)
 ├── scrapers/               # um scraper por plataforma (19 no total)
-├── services/               orquestração, diff, notificações
+├── services/               # orquestração, diff, notificações
 ├── database/               # leitura/escrita do Excel
 └── viewer/export.service.ts # gera viewer/data.js
 
@@ -42,11 +42,11 @@ data/                        # Excel + dados
 
 ## Configuração
 
-Tudo está em [`src/config/index.ts`](src/config/index.ts). Não há `.env` — edita diretamente:
+Tudo está em [`src/config/index.ts`](src/config/index.ts). Não há `.env`, edita diretamente:
 
-- `activeScrapers` — lista vazia = corre todos. Para correr só alguns: `["onefix", "lcpremium"]`
-- `scraperTimeoutMs` — tempo máximo por scraper (default: 300000 = 5 min)
-- `requestTimeout` — timeout dos pedidos HTTP (default: 30000)
+- `activeScrapers`: lista vazia corre todos. Para correr só alguns: `["onefix", "lcpremium"]`
+- `scraperTimeoutMs`: tempo máximo por scraper (default: 300000 = 5 min)
+- `requestTimeout`: timeout dos pedidos HTTP (default: 30000)
 
 ## Zonas de Interesse
 
