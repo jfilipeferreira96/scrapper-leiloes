@@ -24,6 +24,7 @@ export interface ViewerProperty {
   auctionType: string;
   firstSeenAt: string;
   publishedAt: string;
+  removedAt: string;
 }
 
 async function readSheet(
@@ -62,6 +63,7 @@ async function readSheet(
       auctionType: v[24] ?? "",
       publishedAt: v[19] ?? "",
       firstSeenAt: v[20] ?? "",
+      removedAt: v[25] ?? "",
     });
   });
 
@@ -76,7 +78,7 @@ function numOrNull(val: any): number | null {
 
 export async function exportViewerData(excelPath: string): Promise<void> {
   if (!fs.existsSync(excelPath)) {
-    logger.warn(`Viewer export skipped — Excel file not found: ${excelPath}`);
+    logger.warn(`Viewer export skipped: Excel file not found: ${excelPath}`);
     return;
   }
 
@@ -99,7 +101,7 @@ export async function exportViewerData(excelPath: string): Promise<void> {
   const outputPath = path.join(outputDir, "data.js");
 
   const jsContent =
-    `// AUTO-GENERATED — do not edit manually.\n` +
+    `// AUTO-GENERATED, do not edit manually.\n` +
     `// Last updated: ${payload.generatedAt}\n` +
     `window.__PROPERTY_DATA__ = ${JSON.stringify(payload, null, 2)};\n`;
 

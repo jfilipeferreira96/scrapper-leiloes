@@ -1,9 +1,5 @@
 import type { PropertyDiff } from "../models/property.js";
-import { logger } from "../utils/logger.js";
 
-/**
- * Prints a readable summary to the console and returns the counts.
- */
 export function printSummary(diffs: PropertyDiff[]): {
   new: number;
   priceChange: number;
@@ -20,13 +16,13 @@ export function printSummary(diffs: PropertyDiff[]): {
   };
 
   console.log("\n" + "=".repeat(50));
-  console.log("  EXECUTION SUMMARY");
+  console.log("  RESUMO");
   console.log("=".repeat(50));
-  console.log(`  🟢 New properties:          ${counts.new}`);
-  console.log(`  🟡 Price changes:           ${counts.priceChange}`);
-  console.log(`  🔵 Status changes:          ${counts.statusChange}`);
-  console.log(`  🔴 Removed:                 ${counts.removed}`);
-  console.log(`  ⚪ Unchanged:               ${counts.unchanged}`);
+  console.log(`  Novos:          ${counts.new}`);
+  console.log(`  Preços:         ${counts.priceChange}`);
+  console.log(`  Estados:        ${counts.statusChange}`);
+  console.log(`  Removidos:      ${counts.removed}`);
+  console.log(`  Inalterados:    ${counts.unchanged}`);
   console.log("=".repeat(50) + "\n");
 
   return counts;

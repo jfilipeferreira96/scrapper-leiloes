@@ -4,13 +4,13 @@ body {
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 
-/* ---- View tabs ---- */
+/* View tabs */
 .view-tab {
   padding: .45rem .9rem;
-  border-radius: .5rem;
+  border-radius: .375rem;
   font-size: .82rem;
-  font-weight: 600;
-  transition: all .12s;
+  font-weight: 500;
+  transition: background .12s, color .12s, border-color .12s;
   display: inline-flex;
   align-items: center;
   gap: .35rem;
@@ -18,7 +18,7 @@ body {
 }
 .view-tab:not(.active) {
   background: #fff;
-  color: #64748b;
+  color: #475569;
   border-color: #e2e8f0;
 }
 .dark .view-tab:not(.active) {
@@ -34,9 +34,14 @@ body {
   background: #334155;
 }
 .view-tab.active {
-  background: #2563eb;
+  background: #1e293b;
   color: #fff;
-  border-color: #2563eb;
+  border-color: #1e293b;
+}
+.dark .view-tab.active {
+  background: #e2e8f0;
+  color: #1e293b;
+  border-color: #e2e8f0;
 }
 .count-badge {
   display: inline-flex;
@@ -47,29 +52,33 @@ body {
   padding: 0 .3rem;
   border-radius: 9999px;
   font-size: .68rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 .view-tab.active .count-badge {
   background: rgba(255, 255, 255, .25);
   color: #fff;
 }
+.dark .view-tab.active .count-badge {
+  background: rgba(30, 41, 59, .15);
+  color: #1e293b;
+}
 .view-tab:not(.active) .count-badge {
-  background: #dbeafe;
-  color: #2563eb;
+  background: #e2e8f0;
+  color: #475569;
 }
 .dark .view-tab:not(.active) .count-badge {
-  background: rgba(59, 130, 246, .2);
-  color: #60a5fa;
+  background: #334155;
+  color: #94a3b8;
 }
 
-/* ---- Sort headers ---- */
+/* Sort headers */
 .sort-indicator {
   font-size: .6rem;
   opacity: .5;
   margin-left: .15rem;
 }
 
-/* ---- Expandable row ---- */
+/* Expandable row */
 .expand-row {
   animation: fadeIn .15s ease-out;
 }
@@ -77,17 +86,8 @@ body {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-.expand-arrow {
-  transition: transform .12s ease-out;
-  display: inline-block;
-  color: #94a3b8;
-  font-size: .65rem;
-}
-.expand-arrow.open {
-  transform: rotate(90deg);
-}
 
-/* ---- Scrollbar ---- */
+/* Scrollbar */
 ::-webkit-scrollbar {
   height: 7px;
   width: 7px;
@@ -103,7 +103,7 @@ body {
   background: #475569;
 }
 
-/* ---- Text clamp ---- */
+/* Text clamp */
 .clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -111,11 +111,11 @@ body {
   overflow: hidden;
 }
 
-/* ---- Form inputs ---- */
+/* Form inputs */
 .form-input {
   width: 100%;
   padding: .45rem .65rem;
-  border-radius: .4rem;
+  border-radius: .375rem;
   font-size: .82rem;
   border: 1px solid #cbd5e1;
   background: #fff;
@@ -124,8 +124,8 @@ body {
   transition: border-color .12s, box-shadow .12s;
 }
 .form-input:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, .12);
+  border-color: #475569;
+  box-shadow: 0 0 0 2px rgba(71, 85, 105, .12);
 }
 .dark .form-input {
   background: #1e293b;
@@ -133,31 +133,31 @@ body {
   color: #e2e8f0;
 }
 .dark .form-input:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, .18);
+  border-color: #94a3b8;
+  box-shadow: 0 0 0 2px rgba(148, 163, 184, .15);
 }
 
-/* ---- Pagination ---- */
+/* Pagination */
 .page-btn {
   min-width: 1.85rem;
   height: 1.85rem;
   padding: 0 .4rem;
-  border-radius: .35rem;
+  border-radius: .3rem;
   font-size: .78rem;
   font-weight: 600;
   border: 1px solid #e2e8f0;
   background: #fff;
   color: #475569;
   cursor: pointer;
-  transition: all .1s;
+  transition: background .1s;
 }
 .page-btn:hover:not(:disabled) {
   background: #f1f5f9;
 }
 .page-btn.active {
-  background: #2563eb;
+  background: #1e293b;
   color: #fff;
-  border-color: #2563eb;
+  border-color: #1e293b;
 }
 .page-btn:disabled {
   opacity: .35;
@@ -171,13 +171,18 @@ body {
 .dark .page-btn:hover:not(:disabled) {
   background: #334155;
 }
+.dark .page-btn.active {
+  background: #e2e8f0;
+  color: #1e293b;
+  border-color: #e2e8f0;
+}
 
-/* ---- Jump-to-page input ---- */
+/* Jump-to-page input */
 .page-jump {
   width: 3.5rem;
   height: 1.85rem;
   padding: 0 .4rem;
-  border-radius: .35rem;
+  border-radius: .3rem;
   font-size: .78rem;
   font-weight: 600;
   text-align: center;
@@ -188,8 +193,8 @@ body {
   transition: border-color .12s, box-shadow .12s;
 }
 .page-jump:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, .12);
+  border-color: #475569;
+  box-shadow: 0 0 0 2px rgba(71, 85, 105, .12);
 }
 .dark .page-jump {
   background: #1e293b;
@@ -197,11 +202,11 @@ body {
   color: #e2e8f0;
 }
 .dark .page-jump:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, .18);
+  border-color: #94a3b8;
+  box-shadow: 0 0 0 2px rgba(148, 163, 184, .15);
 }
 
-/* ---- Action buttons (favorite / exclude) ---- */
+/* Row action buttons */
 .act-btn {
   width: 1.6rem;
   height: 1.6rem;
@@ -214,7 +219,7 @@ body {
   justify-content: center;
   font-size: .85rem;
   color: #94a3b8;
-  transition: all .1s;
+  transition: background .1s, color .1s;
   line-height: 1;
 }
 .act-btn:hover {
@@ -226,16 +231,16 @@ body {
   color: #cbd5e1;
 }
 .act-btn.fav-active {
-  color: #f59e0b;
-}
-.act-btn.fav-active:hover {
   color: #d97706;
 }
+.act-btn.fav-active:hover {
+  color: #b45309;
+}
 .act-btn.excl-btn:hover {
-  color: #ef4444;
+  color: #dc2626;
 }
 
-/* ---- Zone config modal ---- */
+/* Zone config modal */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -249,7 +254,7 @@ body {
 }
 .modal-box {
   background: #fff;
-  border-radius: .75rem;
+  border-radius: .5rem;
   max-width: 700px;
   width: 100%;
   box-shadow: 0 20px 60px rgba(0, 0, 0, .2);
@@ -280,59 +285,29 @@ body {
   background: #334155;
 }
 .zone-cb input {
-  accent-color: #2563eb;
+  accent-color: #475569;
 }
 
-/* ---- Stat accent bar ---- */
-.stat-card {
-  position: relative;
-  overflow: hidden;
-  transition: transform .12s, box-shadow .12s;
-}
-.stat-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, .06);
-}
-.stat-card::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-}
-
-/* ---- Sticky table header ---- */
-.sticky-thead th {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: #f8fafc;
-}
-.dark .sticky-thead th {
-  background: #1e293b;
-}
-
-/* ---- Price presets ---- */
+/* Price presets */
 .price-preset {
   padding: .3rem .7rem;
-  border-radius: .4rem;
+  border-radius: .375rem;
   font-size: .75rem;
-  font-weight: 600;
+  font-weight: 500;
   border: 1px solid #e2e8f0;
   background: #fff;
-  color: #64748b;
+  color: #475569;
   cursor: pointer;
-  transition: all .1s;
+  transition: background .1s, border-color .1s;
 }
 .price-preset:hover {
   border-color: #cbd5e1;
   background: #f8fafc;
 }
 .price-preset.active {
-  background: #2563eb;
+  background: #1e293b;
   color: #fff;
-  border-color: #2563eb;
+  border-color: #1e293b;
 }
 .dark .price-preset {
   background: #1e293b;
@@ -343,12 +318,12 @@ body {
   background: #334155;
 }
 .dark .price-preset.active {
-  background: #2563eb;
-  border-color: #2563eb;
-  color: #fff;
+  background: #e2e8f0;
+  border-color: #e2e8f0;
+  color: #1e293b;
 }
 
-/* ---- Filter chips ---- */
+/* Filter chips */
 .filter-chip {
   display: inline-flex;
   align-items: center;
@@ -356,23 +331,23 @@ body {
   padding: .2rem .5rem .2rem .6rem;
   border-radius: 9999px;
   font-size: .72rem;
-  font-weight: 600;
-  background: #eff6ff;
-  color: #2563eb;
-  border: 1px solid #bfdbfe;
+  font-weight: 500;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
   cursor: pointer;
-  transition: all .1s;
+  transition: background .1s;
 }
 .filter-chip:hover {
-  background: #dbeafe;
+  background: #e2e8f0;
 }
 .dark .filter-chip {
-  background: rgba(59, 130, 246, .15);
-  color: #60a5fa;
-  border-color: rgba(59, 130, 246, .3);
+  background: #1e293b;
+  color: #cbd5e1;
+  border-color: #334155;
 }
 .dark .filter-chip:hover {
-  background: rgba(59, 130, 246, .25);
+  background: #334155;
 }
 .chip-x {
   font-size: .9rem;
@@ -380,7 +355,7 @@ body {
   opacity: .6;
 }
 
-/* ---- Source legend ---- */
+/* Source legend */
 .legend-dot {
   display: inline-block;
   width: .55rem;
@@ -389,10 +364,10 @@ body {
   margin-right: .3rem;
 }
 
-/* ---- Zone group card ---- */
+/* Zone group card */
 .zone-group-card {
   padding: .75rem;
-  border-radius: .5rem;
+  border-radius: .375rem;
   background: #f8fafc;
   border: 1px solid #f1f5f9;
 }
