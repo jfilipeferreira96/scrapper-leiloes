@@ -29,7 +29,6 @@ async function main() {
     console.log('-'.repeat(80));
   });
   
-  // Summary statistics
   const totalValue = properties.reduce((sum, p) => sum + p.price, 0);
   const withImages = properties.filter(p => p.images && p.images.length > 0).length;
   const withPrice = properties.filter(p => p.price > 0).length;

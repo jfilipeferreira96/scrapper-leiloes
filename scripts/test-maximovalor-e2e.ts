@@ -10,7 +10,6 @@ async function main() {
   console.log(`\nFound ${properties.length} properties\n`);
   console.log('='.repeat(80));
   
-  // Group by auction type
   const byType = properties.reduce((acc, prop) => {
     const type = prop.auctionType || 'unknown';
     if (!acc[type]) acc[type] = [];
@@ -18,7 +17,6 @@ async function main() {
     return acc;
   }, {} as Record<string, typeof properties>);
   
-  // Display properties grouped by type
   for (const [type, props] of Object.entries(byType)) {
     console.log(`\n${type.toUpperCase()} (${props.length} properties)`);
     console.log('='.repeat(80));
@@ -43,7 +41,6 @@ async function main() {
     });
   }
   
-  // Summary statistics
   const totalValue = properties.reduce((sum, p) => sum + p.price, 0);
   const withImages = properties.filter(p => p.images && p.images.length > 0).length;
   const withPrice = properties.filter(p => p.price > 0).length;
@@ -61,7 +58,6 @@ async function main() {
   console.log(`Properties with current bid: ${withCurrentBid} (${((withCurrentBid/properties.length)*100).toFixed(1)}%)`);
   console.log(`Average value: ${(totalValue / properties.length).toFixed(2)} €`);
   
-  // Auction type breakdown
   console.log('\n' + '='.repeat(80));
   console.log('BY AUCTION TYPE');
   console.log('='.repeat(80));

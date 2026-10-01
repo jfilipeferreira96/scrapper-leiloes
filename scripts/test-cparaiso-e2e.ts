@@ -1,9 +1,3 @@
-/**
- * CParaiso E2E Test
- *
- * Usage: npx tsx scripts/test-cparaiso-e2e.ts
- */
-
 import { CParaisoScraper } from "../src/scrapers/cparaiso/cparaiso.scraper.js";
 
 async function main() {
@@ -15,7 +9,7 @@ async function main() {
   console.log(`\n=== Results: ${results.length} properties ===\n`);
 
   for (const prop of results) {
-    console.log("────────────────────────────────────────────────────────────");
+    console.log("=".repeat(60));
     console.log(`ID:       ${prop.externalId || "N/A"}`);
     console.log(`Title:    ${prop.title}`);
     console.log(`Price:    ${prop.price.toLocaleString()} €`);

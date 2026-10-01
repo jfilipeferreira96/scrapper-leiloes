@@ -1,9 +1,4 @@
 #!/usr/bin/env tsx
-/**
- * E2E test script for Caixa Imobiliário scraper
- * Tests the full scraping pipeline and displays results
- */
-
 import { CaixaimobiliarioScraper } from "../src/scrapers/caixaimobiliario/caixaimobiliario.scraper.js";
 
 async function main() {
@@ -16,7 +11,7 @@ async function main() {
     console.log("\n📋 Starting scrape...");
     const properties = await scraper.scrape();
 
-    console.log(`\n✅ Scrape complete! Found ${properties.length} properties\n`);
+    console.log(`\nScrape complete! Found ${properties.length} properties\n`);
 
     if (properties.length === 0) {
       console.log("⚠️  No properties found. This could mean:");
@@ -26,20 +21,18 @@ async function main() {
       return;
     }
 
-    // Display statistics
     const withImages = properties.filter((p) => p.images && p.images.length > 0).length;
     const withPrices = properties.filter((p) => p.price > 0).length;
     const withDescription = properties.filter((p) => p.description && p.description.length > 0).length;
     const withArea = properties.filter((p) => p.area && p.area > 0).length;
 
-    console.log("📊 Statistics:");
+    console.log("Statistics:");
     console.log(`   Total properties: ${properties.length}`);
     console.log(`   With images: ${withImages} (${((withImages / properties.length) * 100).toFixed(1)}%)`);
     console.log(`   With prices: ${withPrices} (${((withPrices / properties.length) * 100).toFixed(1)}%)`);
     console.log(`   With description: ${withDescription} (${((withDescription / properties.length) * 100).toFixed(1)}%)`);
     console.log(`   With area: ${withArea} (${((withArea / properties.length) * 100).toFixed(1)}%)`);
 
-    // Calculate price statistics
     const pricedProperties = properties.filter((p) => p.price > 0);
     if (pricedProperties.length > 0) {
       const totalPrice = pricedProperties.reduce((sum, p) => sum + p.price, 0);
@@ -53,7 +46,6 @@ async function main() {
       console.log(`   Max: ${maxPrice.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}`);
     }
 
-    // Display first few properties
     console.log("\n" + "=".repeat(60));
     console.log("🏠 First 5 Properties:\n");
 
@@ -70,7 +62,6 @@ async function main() {
       console.log();
     });
 
-    // Group by municipality
     const byMunicipality: Record<string, number> = {};
     properties.forEach((p) => {
       const municipality = p.municipality || "Unknown";
@@ -86,7 +77,7 @@ async function main() {
       });
 
   } catch (error) {
-    console.error("\n❌ Error during scrape:");
+    console.error("\nError during scrape:");
     console.error(error);
     process.exit(1);
   }

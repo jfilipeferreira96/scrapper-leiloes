@@ -1,9 +1,3 @@
-/**
- * End-to-end test for the OneFix scraper.
- *
- * Usage: npx tsx scripts/test-onefix-e2e.ts
- */
-
 import { OneFixScraper } from "../src/scrapers/onefix/onefix.scraper.js";
 
 async function main() {
@@ -15,13 +9,13 @@ async function main() {
   console.log(`\n=== Results: ${properties.length} properties ===\n`);
 
   for (const p of properties) {
-    console.log("─".repeat(60));
+    console.log("=".repeat(60));
     console.log(`ID:       ${p.externalId}`);
     console.log(`Title:    ${p.title}`);
     console.log(`Price:    ${p.price} €`);
     console.log(`Type:     ${p.auctionType}`);
     console.log(`Location: ${p.location}`);
-    console.log(`Coords:   ${p.latitude || "—"}, ${p.longitude || "—"}`);
+    console.log(`Coords:   ${p.latitude || "-"}, ${p.longitude || "-"}`);
     console.log(`Images:   ${p.images.length}`);
     console.log(`URL:      ${p.url}`);
     if (p.description) {

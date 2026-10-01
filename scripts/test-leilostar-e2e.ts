@@ -1,9 +1,3 @@
-/**
- * End-to-end test for the Leilostar scraper.
- *
- * Usage: npx tsx scripts/test-leilostar-e2e.ts
- */
-
 import { LeilostarScraper } from "../src/scrapers/leilostar/leilostar.scraper.js";
 
 async function main() {
@@ -15,17 +9,17 @@ async function main() {
   console.log(`\n=== Results: ${properties.length} properties ===\n`);
 
   for (const p of properties) {
-    console.log("─".repeat(60));
+    console.log("=".repeat(60));
     console.log(`ID:       ${p.externalId}`);
     console.log(`Title:    ${p.title}`);
     console.log(`Price:    ${p.price} €`);
     console.log(`Type:     ${p.auctionType}`);
     console.log(`Location: ${p.location}`);
-    console.log(`District:  ${p.district || "—"}`);
-    console.log(`Municipal: ${p.municipality || "—"}`);
-    console.log(`Parish:    ${p.parish || "—"}`);
-    console.log(`Area:     ${p.area || "—"} m²`);
-    console.log(`Coords:   ${p.latitude || "—"}, ${p.longitude || "—"}`);
+    console.log(`District:  ${p.district || "-"}`);
+    console.log(`Municipal: ${p.municipality || "-"}`);
+    console.log(`Parish:    ${p.parish || "-"}`);
+    console.log(`Area:     ${p.area || "-"} m²`);
+    console.log(`Coords:   ${p.latitude || "-"}, ${p.longitude || "-"}`);
     console.log(`Images:   ${p.images.length}`);
     console.log(`URL:      ${p.url}`);
     if (p.description) {
@@ -36,7 +30,6 @@ async function main() {
     }
   }
 
-  // Summary stats
   console.log("\n" + "=".repeat(60));
   console.log("SUMMARY");
   console.log("=".repeat(60));

@@ -1,10 +1,3 @@
-/**
- * Debug script for OneFix scraper.
- * Tests each step individually with timeouts to identify where it hangs.
- *
- * Usage: npx tsx scripts/debug-onefix.ts
- */
-
 import { CurlHelper } from "../src/utils/curl.js";
 
 const ONEFIX_URL = "https://www.onefix-leiloeiros.pt/tipo_verbas/1/Imoveis";
@@ -34,7 +27,6 @@ async function main() {
   console.log("=== OneFix Debug Script ===");
   console.log(`[${new Date().toISOString()}] Testing URL: ${ONEFIX_URL}`);
 
-  // Step 1: Test if curl is available
   console.log("\n--- Step 1: Check curl availability ---");
   const curlAvailable = CurlHelper.isAvailable();
   console.log(`Curl available: ${curlAvailable}`);
@@ -43,7 +35,6 @@ async function main() {
     return;
   }
 
-  // Step 2: Test fetching the listing page with CurlHelper
   console.log("\n--- Step 2: Fetch listing page with CurlHelper ---");
   const html = await withTimeout("CurlHelper.get(ONEFIX_URL)", async () => {
     return CurlHelper.get(ONEFIX_URL);
@@ -59,7 +50,6 @@ async function main() {
   console.log(`Contains property-title: ${html.includes("property-title")}`);
   console.log(`Contains pagination: ${html.includes("pagination")}`);
 
-  // Step 3: Test parsing the listing
   console.log("\n--- Step 3: Parse listing ---");
   const { parseOneFixListing } = await import("../src/scrapers/onefix/onefix.parser.js");
   
@@ -80,7 +70,6 @@ async function main() {
     console.log(JSON.stringify(parseResult.properties[0], null, 2));
   }
 
-  // Step 4: Test fetching a detail page
   if (parseResult.properties.length > 0) {
     console.log("\n--- Step 4: Fetch detail page ---");
     const detailUrl = parseResult.properties[0].url;

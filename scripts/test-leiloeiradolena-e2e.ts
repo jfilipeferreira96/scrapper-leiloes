@@ -1,9 +1,3 @@
-/**
- * End-to-end test for the Leiloeira do Lena scraper.
- *
- * Usage: npx tsx scripts/test-leiloeiradolena-e2e.ts
- */
-
 import { LeiloeiraDolenaScraper } from "../src/scrapers/leiloeiradolena/leiloeiradolena.scraper.js";
 
 async function main() {
@@ -15,10 +9,10 @@ async function main() {
   console.log(`\n=== Results: ${properties.length} properties ===\n`);
 
   for (const p of properties) {
-    console.log("─".repeat(60));
+    console.log("=".repeat(60));
     console.log(`ID:       ${p.externalId}`);
     console.log(`Title:    ${p.title}`);
-    console.log(`Price:    ${p.price} € (opening: ${p.openingValue ?? "—"}, min: ${p.minSaleValue ?? "—"}, bid: ${p.currentBid ?? "—"})`);
+    console.log(`Price:    ${p.price} € (opening: ${p.openingValue ?? "-"}, min: ${p.minSaleValue ?? "-"}, bid: ${p.currentBid ?? "-"})`);
     console.log(`Type:     ${p.auctionType}`);
     console.log(`Location: ${p.location} (${p.district ?? "?"} / ${p.municipality ?? "?"})`);
     console.log(`Status:   ${p.status}`);

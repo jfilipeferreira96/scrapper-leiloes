@@ -33,7 +33,6 @@ async function testExclusivagoraE2E() {
       }
     }
     
-    // Count by auction type
     const byType = properties.reduce((acc, p) => {
       const type = p.auctionType || 'Unknown';
       acc[type] = (acc[type] || 0) + 1;
@@ -45,7 +44,6 @@ async function testExclusivagoraE2E() {
       logger.info(`  - ${type}: ${count}`);
     });
     
-    // Count by status
     const byStatus = properties.reduce((acc, p) => {
       const status = p.status || 'Unknown';
       acc[status] = (acc[status] || 0) + 1;
