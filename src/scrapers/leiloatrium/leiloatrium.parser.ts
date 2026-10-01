@@ -27,22 +27,10 @@ export interface WpProduct {
 }
 
 export class LeiloatriumParser {
-  /**
-   * Parse a single WordPress REST API product into a Property.
-   *
-   * Extracts:
-   *  - externalId from product id
-   *  - title from title.rendered
-   *  - description / prices / dates from content.rendered
-   *  - auctionType, district from class_list (e.g. "distrito-coimbra")
-   *  - images from embedded featured media
-   */
   static parseProduct(product: WpProduct): Property {
     const $ = cheerio.load(`<div>${product.content.rendered}</div>`);
 
-    // --- Prices -----------------------------------------------------------
-    // "Valor Mínimo de Venda: 25.500,00€"
-    // "Valor Base de Venda: 30.000,00€"
+    // e.g. "Valor Mínimo de Venda: 25.500,00€" / "Valor Base de Venda: 30.000,00€"
     let minSaleValue: number | undefined;
     let openingValue: number | undefined;
     $('p, li').each((_, el) => {
@@ -57,9 +45,7 @@ export class LeiloatriumParser {
       }
     });
 
-    // --- Dates ------------------------------------------------------------
-    // "Data de início: 19 de junho de 2026 às 16:00H"
-    // "Data de término: 17 de julho de 2026 às 14:00H"
+    // e.g. "Data de início: 19 de junho de 2026 às 16:00H"
     let startDate: Date | undefined;
     let endDate: Date | undefined;
     $('p').each((_, el) => {
@@ -74,13 +60,11 @@ export class LeiloatriumParser {
       }
     });
 
-    // --- Status -----------------------------------------------------------
     let status = 'unknown';
     if (endDate) {
       status = endDate.getTime() > Date.now() ? 'open' : 'closed';
     }
 
-    // --- Taxonomy from class_list ----------------------------------------
     // e.g. "tipo_de_leilao-negociacao-particular", "distrito-coimbra"
     let auctionType: string | undefined;
     let district: string | undefined;
@@ -92,20 +76,16 @@ export class LeiloatriumParser {
       }
     }
 
-    // --- Process number from excerpt -------------------------------------
     const excerptText = cheerio.load(product.excerpt.rendered).text().trim();
 
-    // --- Images from embedded featured media -----------------------------
     const images: string[] = [];
     const featuredMedia = product._embedded?.['wp:featuredmedia']?.[0];
     if (featuredMedia?.source_url) {
       images.push(featuredMedia.source_url);
     }
 
-    // --- Description (strip prices/dates, keep the rest) -----------------
     const description = cheerio.load(product.content.rendered).text().trim();
 
-    // --- Clean title ------------------------------------------------------
     const title = cheerio.load(product.title.rendered).text().trim();
 
     return {
@@ -127,9 +107,7 @@ export class LeiloatriumParser {
   }
 }
 
-/**
- * Convert a slug like "negociacao-particular" into "Negociação Particular".
- */
+// "negociacao-particular" -> "Negociação Particular" (map keeps the PT accents)
 function humanizeSlug(slug: string): string {
   const map: Record<string, string> = {
     negociacao: 'Negociação',
@@ -144,9 +122,7 @@ function humanizeSlug(slug: string): string {
     .join(' ');
 }
 
-/**
- * Parse a Portuguese date string like "17 de julho de 2026 às 14:00H".
- */
+// Parses "17 de julho de 2026 às 14:00H"
 function parsePortugueseDate(text: string): Date | undefined {
   const months: Record<string, number> = {
     janeiro: 0, fevereiro: 1, marco: 2, março: 2, abril: 3, maio: 4, junho: 5,

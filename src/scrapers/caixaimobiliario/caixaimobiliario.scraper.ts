@@ -16,10 +16,8 @@ export class CaixaimobiliarioScraper extends BaseScraper {
     const html = await this.fetchPage(LISTING_URL);
     const partials = extractCaixaimobiliarioListings(html);
 
-    // Convert partials to full Property objects
     const properties: Property[] = [];
     for (const partial of partials) {
-      // Ensure required fields
       const property: Property = {
         source: partial.source || 'caixaimobiliario',
         externalId: partial.externalId || '',
@@ -50,7 +48,6 @@ export class CaixaimobiliarioScraper extends BaseScraper {
       const html = await this.fetchPage(base.url);
       const detail = parseCaixaimobiliarioDetail(html, BASE_URL);
 
-      // Merge detail data with existing property data
       return {
         ...base,
         title: detail.title || base.title,
@@ -64,7 +61,6 @@ export class CaixaimobiliarioScraper extends BaseScraper {
         area: detail.area || base.area,
       };
     } catch (error) {
-      // Return base property if enrichment fails
       return base;
     }
   }

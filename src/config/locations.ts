@@ -1,7 +1,4 @@
-/**
- * Locations of interest. The scraper collects everything and then filters
- * against this list.
- */
+// Target locations: scrapers collect everything, then filter against this list.
 export const LOCATIONS: string[] = [
   "Argoncilhe",
   "Fiães",
@@ -42,9 +39,6 @@ export const LOCATIONS: string[] = [
   "Aveiro",
 ];
 
-/**
- * Removes accents and normalizes text for case-insensitive comparison.
- */
 export function normalizeText(text: string): string {
   return text
     .normalize("NFD")
@@ -58,48 +52,23 @@ const NORMALIZED_LOCATIONS = LOCATIONS.map(normalizeText);
 /** Set of normalized locations for O(1) exact lookup. */
 const NORMALIZED_LOCATIONS_SET = new Set(NORMALIZED_LOCATIONS);
 
-/** Escapes special regex characters in a string. */
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/**
- * Checks whether a free-text location (from the scraper) matches any of the
- * target locations.
- *
- * Uses WORD-BOUNDARY matching to avoid false positives. For example, the
- * parish "Anta" must NOT match inside "Santa Maria dos Olivais".
- *
- *   "Rio Meão, Santa Maria da Feira"  → true  (matches "Rio Meão")
- *   "Santa Maria dos Olivais, Lisboa" → false (no target location found)
- */
+// Word-boundary matching so "Anta" doesn't match inside "Santa Maria dos Olivais".
 export function isLocationOfInterest(location: string): boolean {
   const normalized = normalizeText(location);
   return NORMALIZED_LOCATIONS.some((loc) => {
     if (normalized === loc) return true;
-    // Word-boundary match: ensures "anta" doesn't match inside "santa"
     const regex = new RegExp(`\\b${escapeRegex(loc)}\\b`, "i");
     return regex.test(normalized);
   });
 }
 
-/**
- * Checks whether a property is in a location of interest.
- *
- * Uses EXACT matching on parish/municipality/district (not substring),
- * plus district scoping to eliminate false positives.
- *
- * - Properties KNOWN to be outside Aveiro/Porto districts are rejected.
- * - Within those districts (or when district is unknown), any exact match
- *   on parish, municipality, or district counts as a hit.
- * - The `location` field (street address) uses word-boundary regex as a
- *   fallback for free-text addresses like "Rua de Argoncilhe".
- *
- *   parish "Canelas", district "Porto"        → true  (Canelas, VNG)
- *   municipality "Porto de Mós", district ""  → false (exact: "porto de mós" !== "porto")
- *   district "Lisboa"                          → false (outside Aveiro/Porto)
- *   location "Rua de Argoncilhe", district "" → true  (word-boundary on address)
- */
+// Exact match on parish/municipality/district, scoped to the target districts when
+// they are known; the free-text location field falls back to word-boundary matching
+// for addresses like "Rua de Argoncilhe".
 export function isPropertyInLocation(
   p: {
     location?: string;
@@ -111,8 +80,6 @@ export function isPropertyInLocation(
 ): boolean {
   const district = normalizeText(p.district || "");
 
-  // District scope: reject properties known to be outside zone districts
-  // (only applied when zoneDistricts is provided and non-empty)
   if (zoneDistricts && zoneDistricts.length > 0 && district) {
     const normalizedZoneDistricts = zoneDistricts.map(normalizeText);
     if (!normalizedZoneDistricts.includes(district)) {
@@ -120,7 +87,6 @@ export function isPropertyInLocation(
     }
   }
 
-  // Exact match on structured fields
   const parish = normalizeText(p.parish || "");
   const muni = normalizeText(p.municipality || "");
 

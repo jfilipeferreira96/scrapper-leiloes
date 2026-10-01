@@ -1,23 +1,8 @@
 import { execSync } from 'child_process';
 import { logger } from './logger.js';
 
-/**
- * Lightweight HTTP client that uses the system's `curl` binary.
- *
- * Some sites use WAFs (Web Application Firewalls) that block requests based on
- * the TLS fingerprint (JA3 hash) of the HTTP client library. Node.js's TLS
- * implementation differs from curl's, so Node.js requests get blocked while
- * curl requests succeed.
- *
- * This utility wraps `curl` to bypass such WAFs. It's lightweight (no browser
- * needed) and works on any system with curl installed (Linux, macOS, Windows).
- *
- * Usage:
- * ```typescript
- * const html = CurlHelper.get('https://example.com');
- * const json = CurlHelper.getJson('https://api.example.com/data');
- * ```
- */
+// Uses the system `curl` binary: some sites' WAFs block Node's TLS fingerprint (JA3 hash)
+// while curl requests pass, and this avoids the overhead of a headless browser.
 export class CurlHelper {
   /**
    * Default curl options to mimic a real browser.
@@ -39,14 +24,6 @@ export class CurlHelper {
     '-A', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   ];
 
-  /**
-   * Fetch a URL and return the response body as a string.
-   *
-   * @param url - URL to fetch
-   * @param extraArgs - Additional curl arguments
-   * @returns Response body as string
-   * @throws Error if curl fails or returns non-200 status
-   */
   static get(url: string, extraArgs: string[] = []): string {
     const args = [...this.DEFAULT_ARGS, ...extraArgs, url];
     // Quote ALL arguments to handle special characters like parentheses, spaces, etc.
@@ -68,13 +45,6 @@ export class CurlHelper {
     }
   }
 
-  /**
-   * Fetch a URL and return the response body as a JSON object.
-   *
-   * @param url - URL to fetch
-   * @param extraArgs - Additional curl arguments
-   * @returns Parsed JSON object
-   */
   static getJson<T = any>(url: string, extraArgs: string[] = []): T {
     const jsonArgs = ['-H', 'Accept: application/json'];
     const args = [...this.DEFAULT_ARGS, ...jsonArgs, ...extraArgs, url];
@@ -97,12 +67,6 @@ export class CurlHelper {
     }
   }
 
-  /**
-   * Fetch a URL and return the HTTP status code.
-   *
-   * @param url - URL to fetch
-   * @returns HTTP status code
-   */
   static getStatus(url: string): number {
     const args = [
       '--silent',
@@ -123,13 +87,6 @@ export class CurlHelper {
     }
   }
 
-  /**
-   * Fetch a URL and return both headers and body.
-   *
-   * @param url - URL to fetch
-   * @param extraArgs - Additional curl arguments
-   * @returns Object with status, headers, and body
-   */
   static getWithHeaders(url: string, extraArgs: string[] = []): {
     status: number;
     headers: Record<string, string>;
@@ -161,17 +118,14 @@ export class CurlHelper {
     headers: Record<string, string>;
     body: string;
   } {
-    // Split headers from body
     const headerBodySplit = result.split('\r\n\r\n');
     const headerSection = headerBodySplit[0] || '';
     const responseBody = headerBodySplit.slice(1).join('\r\n\r\n');
 
-    // Parse status line
     const lines = headerSection.split('\r\n');
     const statusMatch = lines[0]?.match(/HTTP\/[\d.]+\s+(\d+)/);
     const status = statusMatch ? parseInt(statusMatch[1], 10) : 0;
 
-    // Parse headers
     const headers: Record<string, string> = {};
     for (let i = 1; i < lines.length; i++) {
       const colonIdx = lines[i].indexOf(':');
@@ -185,11 +139,6 @@ export class CurlHelper {
     return { status, headers, body: responseBody };
   }
 
-  /**
-   * Check if curl is available on the system.
-   *
-   * @returns True if curl is installed
-   */
   static isAvailable(): boolean {
     try {
       execSync('curl --version', { encoding: 'utf-8', timeout: 5000 });

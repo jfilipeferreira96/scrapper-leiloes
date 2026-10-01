@@ -47,24 +47,17 @@ export class LeilosilScraper extends BaseScraper {
     return listings;
   }
 
-  /**
-   * Enrich a single Property with detail page data.
-   *
-   * Uses Puppeteer to load the detail page (prices are JS-loaded).
-   * Falls back to standard HTTP if Puppeteer fails.
-   */
+  // prices are JS-loaded, so the detail page needs Puppeteer
   protected async enrichDetail(base: Property): Promise<Property> {
     if (!base.url) return base;
 
     let browser = null;
     try {
-      // Use Puppeteer to get JS-loaded prices
       browser = await PuppeteerHelper.launch();
       const page = await browser.newPage();
 
       await PuppeteerHelper.goto(page, base.url, undefined, 30000);
 
-      // Wait for prices to load (try multiple selectors)
       await page.waitForFunction(
         () => {
           const text = document.body.innerText || '';
@@ -72,20 +65,15 @@ export class LeilosilScraper extends BaseScraper {
         },
         { timeout: 10000 }
       ).catch(() => {
-        // Timeout waiting for price - continue anyway
+        // price never showed up, continue anyway
       });
 
-      // Give a little extra time for AJAX to complete
       await delay(2000);
 
-      // Get the full rendered HTML
       const renderedHtml = await page.content();
       await page.close();
 
-      // Parse static content (title, description, images)
       const detail = parseLeilosilDetail(renderedHtml, base);
-
-      // Parse JS-loaded prices
       const prices = parseLeilosilPrices(renderedHtml);
 
       return {
@@ -97,7 +85,6 @@ export class LeilosilScraper extends BaseScraper {
     } catch (error) {
       logger.warn(`[${this.source}] Puppeteer error for ${base.url}:`, error);
 
-      // Fallback: try standard HTTP fetch
       try {
         const html = await fetchPage(base.url);
         const detail = parseLeilosilDetail(html, base);

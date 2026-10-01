@@ -1,26 +1,13 @@
-/**
- * Avaliberica Parser
- *
- * Parses avaliberica.pt HTML for listing pages and detail pages.
- *
- * Site structure:
- *  - Listing page (results-page.php): shows auction sales (vendas)
- *  - Detail page (auction-list.php?id=XXX): shows individual items (verbas)
- *
- * Grouping strategy: each sale = ONE Property, with all verba data aggregated.
- */
+// Listing page shows auction sales; each sale's detail page aggregates all its
+// verbas (items) into one Property.
 
 import * as cheerio from "cheerio";
 import type { AnyNode } from "domhandler";
 import type { Property } from "../../models/property.js";
 import { parsePrice, extractCoordinates } from "../../utils/parser.js";
 
-/** Type alias for a Cheerio-wrapped element (compatible with cheerio 1.x). */
 type CheerioEl = cheerio.Cheerio<AnyNode>;
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-/** Metadata extracted from a listing-page sale card. */
 export interface SaleLink {
   id: string;
   session: string;
@@ -37,13 +24,6 @@ export interface SaleLink {
   catalogoPdf?: string;
 }
 
-// ─── Listing Page ────────────────────────────────────────────────────────────
-
-/**
- * Parse the listing page HTML.
- *
- * @returns Array of SaleLink (one per featured-item) + total listing pages
- */
 export function parseAvalibericaListing(
   html: string
 ): { sales: SaleLink[]; totalPages: number } {
@@ -61,7 +41,6 @@ export function parseAvalibericaListing(
   return { sales, totalPages };
 }
 
-/** Extract sale metadata from a single `.featured-item` card. */
 function extractSaleFromCard(
   $: cheerio.CheerioAPI,
   $card: CheerioEl
@@ -81,25 +60,18 @@ function extractSaleFromCard(
   const h2Text = cleanText($card.find("h2").first().text());
   const location = h2Text.replace(/^Portugal\s*[-–—]\s*/i, "").trim();
 
-  // Title/category from h5
   const title = cleanText($card.find("h5").first().text());
-
-  // Image
   const image = $card.find(".bgImage img").attr("src") || "";
-
-  // Seller + sale location + contact from <p>
   const pText = $card.find("p").first();
   const seller = cleanText(pText.find("strong").first().text());
   const fullP = cleanText(pText.text());
   const saleLocation = extractAfterLabel(fullP, "Local da Venda:");
   const contact = extractAfterLabel(fullP, "Contacto:");
 
-  // Date from calendar icon
   const dateText = cleanText(
     $card.find(".fa-calendar").parent().text()
   );
 
-  // PDF links
   const anuncioPdf = $card
     .find('a:contains("Anúncio")')
     .attr("href");
@@ -124,7 +96,6 @@ function extractSaleFromCard(
   };
 }
 
-/** Count total listing pages from pagination. */
 function countListingPages($: cheerio.CheerioAPI): number {
   const $pages = $(".pagination .page-numbers ul li");
   if ($pages.length > 0) return $pages.length;
@@ -135,15 +106,6 @@ function countListingPages($: cheerio.CheerioAPI): number {
   return 1;
 }
 
-// ─── Detail Page ─────────────────────────────────────────────────────────────
-
-/**
- * Parse the detail page HTML and aggregate all verbas into sale-level data.
- *
- * @param html      Detail page HTML
- * @param saleMeta  Metadata from the listing page
- * @returns Partial Property with aggregated verba data
- */
 export function parseAvalibericaDetail(
   html: string,
   saleMeta: SaleLink
@@ -154,20 +116,11 @@ export function parseAvalibericaDetail(
     .map((_, el) => extractVerba($, $(el)))
     .get();
 
-  // Aggregate prices
   const totalPrice = verbas.reduce((sum, v) => sum + v.price, 0);
   const totalCurrentBid = verbas.reduce((sum, v) => sum + (v.currentBid || 0), 0);
-
-  // Aggregate images (deduplicated)
   const allImages = [...new Set(verbas.flatMap((v) => v.images))];
-
-  // Aggregate description
   const description = formatAggregatedDescription(verbas);
-
-  // Use first verba's coordinates
   const coords = verbas.find((v) => v.latitude !== undefined);
-
-  // Collect all document links
   const documents = [...new Set(verbas.flatMap((v) => v.documents))];
 
   return {
@@ -183,15 +136,12 @@ export function parseAvalibericaDetail(
   };
 }
 
-/** Count total detail pages (pagination within a sale's verbas). */
 export function countDetailPages(html: string): number {
   const $ = cheerio.load(html);
   const $pages = $(".pagination .page-numbers ul li");
   if ($pages.length > 0) return $pages.length;
   return 1;
 }
-
-// ─── Verba Extraction ────────────────────────────────────────────────────────
 
 interface VerbaData {
   title: string;
@@ -204,7 +154,6 @@ interface VerbaData {
   documents: string[];
 }
 
-/** Extract data from a single verba div. */
 function extractVerba(
   $: cheerio.CheerioAPI,
   $verba: CheerioEl
@@ -242,7 +191,6 @@ function extractVerba(
   };
 }
 
-/** Extract images from verba carousel, avoiding modal duplicates. */
 function extractVerbaImages(
   $: cheerio.CheerioAPI,
   $verba: CheerioEl
@@ -265,7 +213,6 @@ function extractVerbaImages(
   return images;
 }
 
-/** Extract description: full modal text preferred, fallback to truncated. */
 function extractVerbaDescription(
   $: cheerio.CheerioAPI,
   $verba: CheerioEl
@@ -279,7 +226,6 @@ function extractVerbaDescription(
   return cleanText(truncated);
 }
 
-/** Extract price values from the list-info section. */
 function extractVerbaPrices(
   $: cheerio.CheerioAPI,
   $verba: CheerioEl
@@ -311,7 +257,6 @@ function extractVerbaPrices(
   return { price, currentBid };
 }
 
-/** Extract document PDF links from the documentation tab. */
 function extractVerbaDocuments(
   $: cheerio.CheerioAPI,
   $verba: CheerioEl,
@@ -330,14 +275,10 @@ function extractVerbaDocuments(
   return docs;
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-/** Normalize whitespace in text. */
 function cleanText(text: string): string {
   return text.replace(/\s+/g, " ").replace(/\u00a0/g, " ").trim();
 }
 
-/** Extract text after a label like "Local da Venda:" or "Contacto:". */
 function extractAfterLabel(text: string, label: string): string {
   const regex = new RegExp(`${escapeRegex(label)}\\s*(.+?)(?:\\s*(?:Contacto:|Local da Venda:|$))`, "i");
   const match = text.match(regex);
@@ -348,7 +289,6 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** Resolve relative URLs to absolute. */
 function resolveUrl(url: string): string {
   if (!url) return "";
   if (url.startsWith("http")) return url;
@@ -357,7 +297,6 @@ function resolveUrl(url: string): string {
   return `https://www.avaliberica.pt/${url}`;
 }
 
-/** Parse date text like "07-07-2026, 11:00" → Date. */
 function parseDetailDate(dateText: string): Date {
   // Format: DD-MM-YYYY, HH:mm
   const match = dateText.match(/(\d{2})-(\d{2})-(\d{4})[,\s]+(\d{2}):(\d{2})/);
@@ -374,12 +313,11 @@ function parseDetailDate(dateText: string): Date {
   return new Date();
 }
 
-/** Format aggregated verba descriptions into a readable block. */
 function formatAggregatedDescription(verbas: VerbaData[]): string {
   if (verbas.length === 0) return "";
   if (verbas.length === 1) {
     const v = verbas[0];
-    return `${v.title} — ${formatPrice(v.price)}\n${v.description}`;
+    return `${v.title} - ${formatPrice(v.price)}\n${v.description}`;
   }
 
   const parts = verbas.map((v) => {
@@ -390,7 +328,6 @@ function formatAggregatedDescription(verbas: VerbaData[]): string {
   return `${verbas.length} verbas neste leilão:\n\n${parts.join("\n\n")}`;
 }
 
-/** Format a number as Portuguese price string. */
 function formatPrice(value: number): string {
   return value.toLocaleString("pt-PT", {
     style: "currency",

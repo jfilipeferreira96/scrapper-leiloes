@@ -26,7 +26,6 @@ export class OneFixScraper extends BaseScraper {
         allProperties.push(...properties);
         logger.info(`[${this.source}] Page ${pageCount}: ${properties.length} properties (total: ${allProperties.length})`);
         
-        // Stop pagination if no properties found (end of results)
         if (properties.length === 0) {
           logger.info(`[${this.source}] No properties found on page ${pageCount}, stopping pagination`);
           break;
@@ -34,7 +33,6 @@ export class OneFixScraper extends BaseScraper {
         
         currentUrl = nextUrl ? `https://www.onefix-leiloeiros.pt${nextUrl}` : null;
         
-        // Add delay between listing pages to avoid rate limiting
         if (currentUrl) {
           await delay(1500);
         }

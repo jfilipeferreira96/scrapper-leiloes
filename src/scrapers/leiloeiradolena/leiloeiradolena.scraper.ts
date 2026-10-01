@@ -44,7 +44,6 @@ export class LeiloeiraDolenaScraper extends BaseScraper {
   protected async collectListings(): Promise<Property[]> {
     const allProperties: Property[] = [];
 
-    // POST filter form → first batch + session cookie
     logger.info(`[${this.source}] POSTing filter form to ${LIST_ENDPOINT}`);
     let html: string;
     try {
@@ -60,7 +59,6 @@ export class LeiloeiraDolenaScraper extends BaseScraper {
     allProperties.push(...batch);
     logger.info(`[${this.source}] Batch 1: ${batch.length} listings`);
 
-    // GET subsequent batches (session tracks cursor)
     for (let page = 2; page <= MAX_PAGES; page++) {
       try {
         await delay(800);

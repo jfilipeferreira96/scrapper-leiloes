@@ -15,17 +15,12 @@ export function parseViaserumosListing(html: string): Property[] {
     
     if (!href) return;
 
-    // Extract reference (used as externalId)
     const reference = $el.find('.referencia_leilao_terminar').text().trim();
     const externalId = reference || href.split('/').filter(Boolean).pop() || '';
     
     // Extract description (seller name)
     const description = $el.find('.acf_descricao').text().trim();
-    
-    // Extract title
     const title = $el.find('.titulo4').text().trim();
-    
-    // Extract location
     const location = $el.find('.localizacao_leiloes_terminar').text().trim();
     
     // Extract end date from countdown JSON
@@ -43,17 +38,14 @@ export function parseViaserumosListing(html: string): Property[] {
       }
     }
     
-    // Extract auction type and num items
     const auctionInfo = $el.find('.lote_n_leiloes_terminar').toArray();
     const auctionType = $(auctionInfo[0]).text().trim();
     const numItemsText = $(auctionInfo[1]).text().trim();
     const numItemsMatch = numItemsText.match(/nº Verbas:\s*(\d+)/);
     const numItems = numItemsMatch ? parseInt(numItemsMatch[1], 10) : undefined;
     
-    // Extract image
     const image = $el.find('.imagem_bloco_leiloes_terminar img').attr('src');
     
-    // Build description with extra info
     let fullDescription = description || '';
     if (numItems) {
       fullDescription += `\n\nNúmero de verbas: ${numItems}`;
@@ -83,7 +75,6 @@ export function parseViaserumosDetail(html: string, url: string): Partial<Proper
   const $ = cheerio.load(html);
   const result: Partial<Property> = {};
 
-  // Extract reference (used as externalId)
   const reference = $('.referencia_leilao_destaque').text().trim();
   if (reference) result.externalId = reference;
 
@@ -97,7 +88,6 @@ export function parseViaserumosDetail(html: string, url: string): Partial<Proper
     }
   }
 
-  // Extract name and title
   const titles = $('.titulo_leilao_desatque').toArray();
   let name: string | undefined;
   let title: string | undefined;
@@ -106,11 +96,9 @@ export function parseViaserumosDetail(html: string, url: string): Partial<Proper
     title = $(titles[1]).text().trim();
   }
 
-  // Extract location
   const location = $('.bloco_localizacao_leilao_destaque a').text().trim();
   if (location) result.location = location;
 
-  // Extract dates
   let startDate: Date | undefined;
   let endDate: Date | undefined;
   if (processInfo.length >= 4) {
@@ -126,7 +114,6 @@ export function parseViaserumosDetail(html: string, url: string): Partial<Proper
     }
   }
 
-  // Extract tribunal
   let tribunal: string | undefined;
   if (processInfo.length >= 4) {
     const t = $(processInfo[3]).text().trim();
@@ -135,16 +122,13 @@ export function parseViaserumosDetail(html: string, url: string): Partial<Proper
     }
   }
 
-  // Extract catalog link
   const catalogLink = $('.bloco_pagina_lote_4colunas a').attr('href');
   let catalogUrl: string | undefined;
   if (catalogLink) {
     catalogUrl = catalogLink.startsWith('http') ? catalogLink : `${BASE_URL}${catalogLink}`;
   }
 
-  // Extract main images from listing image or detail page
   const mainImages: string[] = [];
-  // Try to get main image from detail page header
   $('.brxe-image.imagem_bloco_leiloes_terminar img').each((_, imgEl) => {
     const $img = $(imgEl);
     const src = $img.attr('src');
@@ -153,27 +137,16 @@ export function parseViaserumosDetail(html: string, url: string): Partial<Proper
     }
   });
 
-  // Extract verbas (items) and prices
   const verbas: any[] = [];
   let totalPrice = 0;
   const images: string[] = [];
 
   $('.bloco_verbas').each((_, verbaEl) => {
     const $verba = $(verbaEl);
-    
-    // Extract verba number
     const verbaNumber = $verba.find('.bloco_interno_verbas_titulo_btn span').text().trim();
-    
-    // Extract verba title
     const verbaTitle = $verba.find('.titulo_bloco_verba').text().trim();
-    
-    // Extract verba location
     const verbaLocation = $verba.find('.localizacao_verba').text().trim();
-    
-    // Extract description
     const verbaDescription = $verba.find('.body1').text().trim();
-    
-    // Extract values
     const valueItems = $verba.find('.verbas_topicos').toArray();
     const type = valueItems.length > 0 ? $(valueItems[0]).text().trim() : undefined;
     const subtype = valueItems.length > 1 ? $(valueItems[1]).text().trim() : undefined;
@@ -181,21 +154,18 @@ export function parseViaserumosDetail(html: string, url: string): Partial<Proper
     const minValueText = valueItems.length > 3 ? $(valueItems[3]).text().trim() : undefined;
     const currentValueText = valueItems.length > 4 ? $(valueItems[4]).text().trim() : undefined;
     
-    // Parse prices
     const baseValue = baseValueText ? parsePrice(baseValueText) : 0;
     const minValue = minValueText ? parsePrice(minValueText) : 0;
     const currentValue = currentValueText && !currentValueText.toLowerCase().includes('sem') 
       ? parsePrice(currentValueText) 
       : 0;
     
-    // Use current value if available, otherwise base value
     const price = currentValue > 0 ? currentValue : baseValue;
     totalPrice += price;
 
-    // Extract images from swiper - check data-style attribute
+    // images are swiper slides: background-image lives in data-style
     $verba.find('.swiper-slide .image').each((_, imgEl) => {
       const $img = $(imgEl);
-      // Get background-image from data-style attribute
       const dataStyle = $img.attr('data-style') || '';
       if (dataStyle) {
         const urlMatch = dataStyle.match(/background-image:\s*url\(['"]?([^'"]+)['"]?\)/);
@@ -221,7 +191,6 @@ export function parseViaserumosDetail(html: string, url: string): Partial<Proper
   });
 
   result.price = totalPrice;
-  // Combine main images with verba images
   const allImages = [...mainImages, ...images];
   if (allImages.length > 0) result.images = allImages;
   result.publishedAt = endDate;
@@ -234,7 +203,6 @@ export function parseViaserumosDetail(html: string, url: string): Partial<Proper
     if (firstVerba.currentValue > 0) result.currentBid = firstVerba.currentValue;
   }
 
-  // Build comprehensive description
   let descriptionParts: string[] = [];
   if (name) descriptionParts.push(name);
   if (title) descriptionParts.push(title);

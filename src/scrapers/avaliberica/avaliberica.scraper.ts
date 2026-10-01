@@ -1,5 +1,3 @@
-// Two-phase: listing pages collect sale URLs, then detail pages enrich each sale.
-
 import type { Property } from "../../models/property.js";
 import { fetchPage, fetchPageWithCookies, delay } from "../../utils/http.js";
 import { logger } from "../../utils/logger.js";

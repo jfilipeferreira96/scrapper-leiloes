@@ -1,5 +1,5 @@
-// WordPress + WooCommerce site behind a SiteGround WAF that blocks Node.js (JA3/TLS fingerprint).
-// Uses Puppeteer with stealth plugin to reach the WP REST API and fetch product JSON.
+// SiteGround WAF blocks Node.js HTTP clients (JA3/TLS fingerprint), so the WP REST API
+// is fetched through Puppeteer with the stealth plugin.
 
 import { BaseScraper } from '../base.scraper.js';
 import { Property } from '../../models/property.js';
@@ -153,7 +153,7 @@ export class LeiloatriumScraper extends BaseScraper {
     }
   }
 
-  // REST API already returns full product data — no separate detail fetch needed
+  // REST API already returns full product data: no separate detail fetch needed
   protected async enrichDetail(property: Property): Promise<Property> {
     return property;
   }

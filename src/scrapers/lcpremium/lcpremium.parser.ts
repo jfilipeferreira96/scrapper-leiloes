@@ -1,15 +1,9 @@
 /**
- * LC Premium Parser
- * 
- * Parses LC Premium HTML for both listing and detail pages.
- * Handles 4 auction types: electronic-auctions, live-auctions, sealed-bid, private-sales.
- * 
- * Key features:
- * - GPS coordinates from Google Maps query parameters (query=LAT,LON)
- * - Price extraction per auction type (Valor de Venda, Valor atual, Valor mínimo)
- * - Multiple lots handling (1 leilão → N lotes)
- * - Property details: area, rooms, bathrooms, garage
- * - Document links: Caderneta Predial, Descrição Predial, Visita Virtual
+ * LC Premium Parser.
+ *
+ * Handles 4 auction types: electronic-auctions, live-auctions, sealed-bid,
+ * private-sales. One auction can contain multiple lots; GPS coordinates come
+ * from Google Maps links (query=LAT,LON).
  */
 
 import * as cheerio from "cheerio";
@@ -17,16 +11,8 @@ import type { Property } from "../../models/property.js";
 import { propertyKey } from "../../models/property.js";
 import { parsePrice, extractCoordinates } from "../../utils/parser.js";
 
-/** Type alias for a Cheerio element selection (a scoped DOM fragment) */
 type CheerioEl = cheerio.Cheerio<any>;
 
-/**
- * Parse LC Premium listing page HTML
- * 
- * @param html - Raw HTML from listing page
- * @param sectionType - Auction type (electronic-auctions, live-auctions, sealed-bid, private-sales)
- * @returns Object with properties array and next page URL
- */
 export function parseLCPremiumListing(
   html: string,
   sectionType: string
@@ -35,11 +21,9 @@ export function parseLCPremiumListing(
   const properties: Property[] = [];
   const nextUrl = extractNextPageUrl($, sectionType);
 
-  // Each auction card has class .leilao-entry
   $('.leilao-entry').each((_, element) => {
     const $el = $(element);
 
-    // Extract title and URL
     const title = $el.find('.entry-title a').first().text().trim();
     const url = $el.find('.entry-title a').first().attr('href');
     if (!url) return;
@@ -48,45 +32,37 @@ export function parseLCPremiumListing(
     const externalIdMatch = url.match(/\/pt\/([^/]+)\/([^/]+)/);
     const externalId = externalIdMatch ? externalIdMatch[2] : '';
 
-    // Extract location (first <li> in .entry-meta)
     const location = $el.find('.entry-meta li:first-child').text().trim();
 
-    // Extract auction type and lot count from second <li>
     const auctionMeta = $el.find('.entry-meta li:nth-child(2)').text().trim();
     const lotCountMatch = auctionMeta.match(/(\d+)\s*Lote\(s\)/);
     const lotCount = lotCountMatch ? parseInt(lotCountMatch[1], 10) : 1;
 
-    // Extract end date from third <li>
     const endDate = $el.find('.entry-meta li:nth-child(3)').text().trim();
 
-    // Create base Property object
     const baseProperty: Property = {
       source: 'lcpremium',
       externalId,
       title,
-      description: '', // Will be populated from detail page
-      price: 0, // Will be populated from detail page
+      description: '',
+      price: 0,
       location,
       url: url.startsWith('http') ? url : `https://www.lcpremium.pt${url}`,
       images: [],
       status: endDate.includes('Termina') ? 'active' : 'scheduled',
-      publishedAt: new Date(), // Could parse endDate to get exact date
-      // Auction-specific fields
+      publishedAt: new Date(),
       openingValue: undefined,
       minSaleValue: undefined,
       currentBid: undefined,
-      // Location fields
       district: undefined,
       municipality: undefined,
       parish: undefined,
       latitude: undefined,
       longitude: undefined,
-      // Property fields
       area: undefined,
       rooms: undefined,
     };
 
-    // Only add if we have a valid externalId
     if (externalId) {
       properties.push(baseProperty);
     }
@@ -95,13 +71,6 @@ export function parseLCPremiumListing(
   return { properties, nextUrl };
 }
 
-/**
- * Parse LC Premium detail page HTML
- * 
- * @param html - Raw HTML from detail page
- * @param base - Base Property object from listing page
- * @returns Array of Property objects (one per lot)
- */
 export function parseLCPremiumDetail(
   html: string,
   base: Property
@@ -109,19 +78,14 @@ export function parseLCPremiumDetail(
   const $ = cheerio.load(html);
   const properties: Property[] = [];
 
-  // Find all lot blocks — electronic/live auctions use .bloco-lote,
-  // private sales use .bloco-lote-verba
+  // .bloco-lote for electronic/live, .bloco-lote-verba for private sales
   const lotBlocks = $('.bloco-lote, .bloco-lote-verba');
 
   if (lotBlocks.length === 0) {
-    // No lots found, return base as single property (search whole document)
     properties.push(enrichProperty(base, $, null));
     return properties;
   }
 
-  // Process each lot — pass the scoped $lot element to enrichProperty()
-  // instead of a lot index, so selectors use $lot.find() rather than
-  // the broken :nth-child() pattern
   lotBlocks.each((_, element) => {
     const $lot = $(element);
     const enriched = enrichProperty(base, $, $lot);
@@ -131,17 +95,6 @@ export function parseLCPremiumDetail(
   return properties;
 }
 
-/**
- * Enrich a Property object with data from detail page
- * 
- * Uses the scoped $lot Cheerio selection to find elements within the lot block,
- * avoiding the broken :nth-child() selector pattern used previously.
- * 
- * @param base - Base Property from listing page
- * @param $ - Cheerio instance of detail page
- * @param $lot - Scoped Cheerio selection for the lot block, or null to search whole document
- * @returns Enriched Property object
- */
 function enrichProperty(
   base: Property,
   $: cheerio.CheerioAPI,
@@ -149,7 +102,6 @@ function enrichProperty(
 ): Property {
   const enriched = { ...base };
 
-  // Determine lot number from .title.lote for externalId and title
   const lotNumber = $lot !== null
     ? extractLotNumberFromBlock($, $lot)
     : null;
@@ -159,7 +111,6 @@ function enrichProperty(
     enriched.title = `${base.title} - Lote ${lotNumber}`;
   }
 
-  // Extract GPS coordinates from .lote-gps a
   const gpsElement = $lot !== null
     ? $lot.find('.lote-gps a').first()
     : $('.lote-gps a').first();
@@ -175,7 +126,6 @@ function enrichProperty(
     }
   }
 
-  // Extract property details from .vertical-align spans (area in m²)
   const $spans = $lot !== null
     ? $lot.find('.vertical-align span')
     : $('.vertical-align span');
@@ -184,14 +134,12 @@ function enrichProperty(
     const $span = $(element);
     const text = $span.text().trim();
 
-    // Extract area (m²)
     const areaMatch = text.match(/(\d+(?:[.,]\d+)?)\s*m²/);
     if (areaMatch) {
       enriched.area = parseFloat(areaMatch[1].replace(',', '.'));
     }
   });
 
-  // Extract description from .lote-description
   const $desc = $lot !== null
     ? $lot.find('.lote-description')
     : $('.lote-description');
@@ -199,7 +147,6 @@ function enrichProperty(
     enriched.description = $desc.text().trim();
   }
 
-  // Extract address from .lote-adress
   const $addr = $lot !== null
     ? $lot.find('.lote-adress')
     : $('.lote-adress');
@@ -212,29 +159,18 @@ function enrichProperty(
     }
   }
 
-  // Extract price information based on auction type
   extractPrices(enriched, $, $lot);
 
-  // Extract images from MagicThumb links
   const images = extractImages($, $lot);
   if (images.length > 0) {
     enriched.images = images;
   }
 
-  // Extract document links
   const docs = extractDocuments($, $lot);
-  // Could add docs as a separate field if needed
 
   return enriched;
 }
 
-/**
- * Extract lot number from the lot block's title element
- * 
- * @param $ - Cheerio instance
- * @param $lot - Scoped lot block selection
- * @returns Lot number, or null if not found
- */
 function extractLotNumberFromBlock(
   $: cheerio.CheerioAPI,
   $lot: CheerioEl
@@ -248,18 +184,10 @@ function extractLotNumberFromBlock(
 
 
 
-/**
- * Extract next page URL from pagination
- * 
- * @param $ - Cheerio instance
- * @param sectionType - Auction type
- * @returns Next page URL or null
- */
 function extractNextPageUrl(
   $: cheerio.CheerioAPI,
   sectionType: string
 ): string | null {
-  // Look for "Próximo" button or pagination link
   const $next = $('a:contains("Próximo")').first();
   if ($next.length > 0) {
     const href = $next.attr('href');
@@ -268,7 +196,6 @@ function extractNextPageUrl(
     }
   }
 
-  // Alternative: Look for pagination links
   const $pagination = $('.pagination a').first();
   if ($pagination.length > 0) {
     const href = $pagination.attr('href');
@@ -281,23 +208,15 @@ function extractNextPageUrl(
 }
 
 /**
- * Extract price information based on auction type
- * 
- * Handles three price display patterns:
- * 1. Electronic/live auctions: .bid-element blocks with "Valor de Venda" / "Valor atual" labels
- * 2. Private sales: .lote-valor-minimo span with "Valor Mínimo"
- * 3. Electronic auctions: .primeira-licitacao-valor-minimo span with minimum offer
- * 
- * @param prop - Property object to update
- * @param $ - Cheerio instance
- * @param $lot - Scoped lot block selection, or null for whole document
+ * Price patterns: "Valor de Venda"/"Valor atual" in .bid-element blocks
+ * (electronic/live), "Valor Mínimo" in .lote-valor-minimo (private sales),
+ * minimum offer in .primeira-licitacao-valor-minimo (electronic).
  */
 function extractPrices(
   prop: Property,
   $: cheerio.CheerioAPI,
   $lot: CheerioEl | null
 ): void {
-  // --- Private sales / sealed-bid: extract from .lote-valor-minimo ---
   const $minValue = $lot !== null
     ? $lot.find('.lote-valor-minimo')
     : $('.lote-valor-minimo');
@@ -312,7 +231,6 @@ function extractPrices(
     }
   }
 
-  // --- Electronic/live auctions: extract from .bid-element blocks ---
   const $bidElements = $lot !== null
     ? $lot.find('.bid-element')
     : $('.bid-element');
@@ -327,7 +245,7 @@ function extractPrices(
     const value = parsePrice(valueMatch[1]);
 
     if (label.includes('Valor de Venda')) {
-      // "Valor de Venda" is the opening/sale value — maps to both price and openingValue
+      // "Valor de Venda" is the opening/sale value: maps to price and openingValue
       prop.price = value;
       prop.openingValue = value;
     } else if (label.includes('Valor atual')) {
@@ -337,7 +255,6 @@ function extractPrices(
     }
   });
 
-  // --- Electronic auctions: extract minimum offer from .primeira-licitacao-valor-minimo ---
   const $minOffer = $lot !== null
     ? $lot.find('.primeira-licitacao-valor-minimo')
     : $('.primeira-licitacao-valor-minimo');
@@ -351,20 +268,12 @@ function extractPrices(
   }
 }
 
-/**
- * Extract image URLs from MagicThumb links
- * 
- * @param $ - Cheerio instance
- * @param $lot - Scoped lot block selection, or null for whole document
- * @returns Array of image URLs
- */
 function extractImages(
   $: cheerio.CheerioAPI,
   $lot: CheerioEl | null
 ): string[] {
   const images: string[] = [];
 
-  // Find all MagicThumb links in the lot block
   const $magicThumb = $lot !== null
     ? $lot.find('.MagicThumb')
     : $('.MagicThumb');
@@ -379,20 +288,12 @@ function extractImages(
   return images;
 }
 
-/**
- * Extract document links
- * 
- * @param $ - Cheerio instance
- * @param $lot - Scoped lot block selection, or null for whole document
- * @returns Array of document objects { type, url }
- */
 function extractDocuments(
   $: cheerio.CheerioAPI,
   $lot: CheerioEl | null
 ): { type: string; url: string }[] {
   const docs: { type: string; url: string }[] = [];
 
-  // Document buttons are in .lot-doc containers
   const $docContainers = $lot !== null
     ? $lot.find('.lot-doc')
     : $('.lot-doc');

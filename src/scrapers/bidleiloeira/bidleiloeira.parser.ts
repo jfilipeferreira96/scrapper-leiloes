@@ -73,7 +73,7 @@ function extractImage($item: cheerio.Cheerio<any>): string | undefined {
 }
 
 function extractLocation(description: string): string | undefined {
-  // Try to extract location using regex pattern: "..., <strong>CityName</strong>"
+  // location is "..., <strong>CityName</strong>" at the end of the description
   const match = description.match(/,\s*<strong>([^<]+)<\/strong>$/i);
   if (match) {
     return match[1].trim();
@@ -102,21 +102,12 @@ function extractLocation(description: string): string | undefined {
   return undefined;
 }
 
-/**
- * Parses the BidLeiloeira detail page HTML.
- * Enriches the base Property with complete data.
- *
- * @param html - Raw HTML of the detail page
- * @param base - Base Property from the listing
- * @returns Complete Property with detail data
- */
 export function parseBidLeiloeiraDetail(html: string, base: Property): Property {
   const $ = cheerio.load(html);
 
-  // Extract location from the detail page (cleaner than listing)
+  // detail page location is cleaner than the listing one
   const location = extractLocationFromDetail($);
   
-  // Extract price info from lot cards
   const priceInfo = extractPriceInfo($);
 
   return {
@@ -133,13 +124,9 @@ export function parseBidLeiloeiraDetail(html: string, base: Property): Property 
   };
 }
 
-/**
- * Extracts location from the detail page sidebar.
- */
 function extractLocationFromDetail($: cheerio.CheerioAPI): string | undefined {
   let location: string | undefined;
   
-  // Look for "Localização" label
   $(".list_subtit").each((_, el) => {
     const $el = $(el);
     if ($el.text().trim().includes("Localização")) {
@@ -151,10 +138,7 @@ function extractLocationFromDetail($: cheerio.CheerioAPI): string | undefined {
   return location;
 }
 
-/**
- * Extracts price information from the detail page.
- * Can extract from lot cards (listing page) or from detailed values (lot page).
- */
+// Handles both layouts: lot cards (listing page) and the detailed "Valores" grid (lot page)
 function extractPriceInfo($: cheerio.CheerioAPI): {
   price: number;
   openingValue: number | undefined;
@@ -168,7 +152,6 @@ function extractPriceInfo($: cheerio.CheerioAPI): {
     currentBid: undefined as number | undefined,
   };
 
-  // Try to extract from lot cards (listing page style)
   $(".leiloes_lotes_divs").each((_, el) => {
     const $lot = $(el);
     const $h4 = $lot.find("h4");
@@ -187,7 +170,6 @@ function extractPriceInfo($: cheerio.CheerioAPI): {
     }
   });
 
-  // Try to extract from detailed values grid (lot page style)
   const $valoresGrid = $(".mais_tit").filter(function() {
     return $(this).text().trim() === "Valores";
   });
@@ -211,9 +193,6 @@ function extractPriceInfo($: cheerio.CheerioAPI): {
   return result;
 }
 
-/**
- * Extracts coordinates from the Google Maps iframe.
- */
 function extractCoordinatesFromIframe($: cheerio.CheerioAPI): { lat: number; lon: number } | undefined {
   const iframe = $("#mapa iframe");
   if (iframe.length === 0) return undefined;
@@ -222,21 +201,14 @@ function extractCoordinatesFromIframe($: cheerio.CheerioAPI): { lat: number; lon
   return extractCoordinates(src);
 }
 
-/**
- * Extracts the description from the detail page.
- */
 function extractDescription($: cheerio.CheerioAPI): string | undefined {
   const desc = $(".leilao_info .desc").text().trim();
   return desc || undefined;
 }
 
-/**
- * Extracts all images from the gallery.
- */
 function extractGalleryImages($: cheerio.CheerioAPI): string[] {
   const images: string[] = [];
   
-  // Gallery items: <a class="item has_bg" href="...">
   $("#div_imagem .item").each((_, el) => {
     const href = $(el).attr("href");
     if (href && href.startsWith("http")) {
@@ -244,7 +216,6 @@ function extractGalleryImages($: cheerio.CheerioAPI): string[] {
     }
   });
   
-  // Also check for images in lot items
   $(".leiloes_lotes_divs .img.has_bg").each((_, el) => {
     const bgStyle = $(el).attr("style") || "";
     const match = bgStyle.match(/url\(['"]?([^'"]+)['"]?\)/);

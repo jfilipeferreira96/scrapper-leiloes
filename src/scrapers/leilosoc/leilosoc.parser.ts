@@ -1,26 +1,13 @@
 /**
- * Leilosoc Parser
- * 
- * Parses Leilosoc HTML for both listing and detail pages.
- * 
- * Key features:
- * - Extracts property listings from category pages
- * - Extracts detailed information from individual auction pages
- * - Handles multiple auction types (Leilão Eletrónico, Negociação Particular, Comprar Já)
- * - Extracts prices, images, documents, and seller information
- * - Hard-coded filter: Portugal properties only
+ * Leilosoc Parser.
+ *
+ * Hard-coded filter: only Portugal properties are kept.
  */
 
 import * as cheerio from "cheerio";
 import type { Property } from "../../models/property.js";
 import { parsePrice } from "../../utils/parser.js";
 
-/**
- * Parse Leilosoc listing page HTML
- * 
- * @param html - Raw HTML from listing page
- * @returns Object with properties array and next page URL
- */
 export function parseLeilosocListing(
   html: string
 ): { properties: Property[]; totalPages: number } {
@@ -28,7 +15,6 @@ export function parseLeilosocListing(
   const properties: Property[] = [];
   const totalPages = extractTotalPages($);
 
-  // Property cards use specific column classes
   const $cards = $('.col-6.col-lg-4.col-xl-3');
   
   // Fallback: try alternative selectors if main selector fails
@@ -43,7 +29,6 @@ export function parseLeilosocListing(
   $cardsToUse.each((_, element) => {
     const $el = $(element);
 
-    // Extract title and URL from the <a> tag
     const $link = $el.find('a[href*="/lot/"]').first();
     if ($link.length === 0) return;
     
@@ -52,8 +37,7 @@ export function parseLeilosocListing(
     
     if (!url || !title) return;
 
-    // HARD-CODED FILTER: Only Portugal properties
-    // The country is shown in .auction-card-location with an img alt="Portugal" or span text "Portugal"
+    // Hard-coded filter: only Portugal (img alt or span text in .auction-card-location)
     const $locationDiv = $link.find('.auction-card-location').first();
     const countryImg = $locationDiv.find('img').attr('alt');
     const countryText = $locationDiv.find('span').text().trim();
@@ -73,44 +57,36 @@ export function parseLeilosocListing(
                       $link.find('[class*="size-h6"]').first().text().trim() || '';
     const price = priceText ? parsePrice(priceText) : 0;
 
-    // Extract end date from auction-card-end-date
     const endDateText = $link.find('.auction-card-end-date span').last().text().trim();
     const endDate = endDateText || '';
 
-    // Extract auction type
     const auctionType = $link.find('.c-eZxjCV').first().text().trim() || '';
 
-    // Extract image URL
     const imageUrl = $link.find('img').first().attr('src');
 
-    // Create base Property object
     const baseProperty: Property = {
       source: 'leilosoc',
       externalId,
       title,
-      description: '', // Will be populated from detail page
+      description: '',
       price,
       location,
       url: url.startsWith('http') ? url : `https://leilosoc.com${url}`,
       images: imageUrl ? [imageUrl] : [],
       status: endDate ? 'active' : 'scheduled',
       publishedAt: new Date(),
-      // Auction-specific fields
       openingValue: undefined,
       minSaleValue: undefined,
       currentBid: price > 0 ? price : undefined,
-      // Location fields
       district: undefined,
       municipality: undefined,
       parish: undefined,
       latitude: undefined,
       longitude: undefined,
-      // Property fields
       area: undefined,
       rooms: undefined,
     };
 
-    // Only add if we have a valid externalId and URL
     if (externalId && url) {
       properties.push(baseProperty);
     }
@@ -119,20 +95,14 @@ export function parseLeilosocListing(
   return { properties, totalPages };
 }
 
-/**
- * Extract total number of pages from pagination
- *
- * Looks for text like "de 4 páginas" in the pagination section
- */
+/** Pagination shows text like "de 4 páginas". */
 function extractTotalPages($: cheerio.CheerioAPI): number {
-  // Look for "de X páginas" text
   const pageText = $('.c-jlSElw').text();
   const match = pageText.match(/de\s+(\d+)\s+páginas/i);
   if (match) {
     return parseInt(match[1], 10);
   }
 
-  // Alternative: count options in page selector
   const $pageSelect = $('select').filter(function() {
     return $(this).find('option').first().attr('value') === '1';
   });
@@ -140,17 +110,9 @@ function extractTotalPages($: cheerio.CheerioAPI): number {
     return $pageSelect.find('option').length;
   }
 
-  // Default: assume single page
   return 1;
 }
 
-/**
- * Parse Leilosoc detail page HTML
- * 
- * @param html - Raw HTML from detail page
- * @param base - Base Property object from listing page
- * @returns Enriched Property object
- */
 export function parseLeilosocDetail(
   html: string,
   base: Property
@@ -158,51 +120,40 @@ export function parseLeilosocDetail(
   const $ = cheerio.load(html);
   const enriched = { ...base };
 
-  // Extract title from h1
   const $title = $('h1').first();
   if ($title.length > 0) {
     enriched.title = $title.text().trim();
   }
 
-  // Extract reference number from details section
   const reference = extractDetailValue($, 'Referência');
   if (reference) {
     enriched.externalId = reference;
   }
 
-  // Extract location details
   extractLocationDetails($, enriched);
 
-  // Extract end date
   const endDateText = extractInfoValue($, 'Data de término');
   if (endDateText) {
     enriched.publishedAt = parseEndDate(endDateText);
   }
 
-  // Extract price information
   extractPriceDetails($, enriched);
 
-  // Extract images
   const images = extractImages($);
   if (images.length > 0) {
     enriched.images = images;
   }
 
-  // Extract description
   const description = extractDescription($);
   if (description) {
     enriched.description = description;
   }
 
-  // Extract property features
   extractPropertyFeatures($, enriched);
 
   return enriched;
 }
 
-/**
- * Extract a value from the details section by label
- */
 function extractDetailValue($: cheerio.CheerioAPI, label: string): string | null {
   const $rows = $('.row, .detail-row, [class*="detail"]');
   
@@ -222,9 +173,6 @@ function extractDetailValue($: cheerio.CheerioAPI, label: string): string | null
   return null;
 }
 
-/**
- * Extract a value from the info section by label
- */
 function extractInfoValue($: cheerio.CheerioAPI, label: string): string | null {
   const $info = $('[style*="grid-area:info"], .info-section');
   if ($info.length > 0) {
@@ -238,27 +186,21 @@ function extractInfoValue($: cheerio.CheerioAPI, label: string): string | null {
   return null;
 }
 
-/**
- * Extract location details from detail page
- */
 function extractLocationDetails($: cheerio.CheerioAPI, prop: Property): void {
   const $locationSection = $('h3:contains("Localização")').parent();
   
   if ($locationSection.length > 0) {
-    // Extract city
     const $city = $locationSection.find('p[style*="font-weight:700"]').first();
     if ($city.length > 0) {
       prop.municipality = $city.text().trim();
       prop.location = $city.text().trim();
     }
 
-    // Extract full address
     const $address = $locationSection.find('p').not('[style*="font-weight:700"]').first();
     if ($address.length > 0) {
       const addressText = $address.text().trim();
       prop.location = addressText;
       
-      // Try to extract district, municipality, parish from address
       const parts = addressText.split(',');
       if (parts.length >= 2) {
         prop.district = parts[parts.length - 1].trim().replace('Portugal', '').trim();
@@ -270,11 +212,8 @@ function extractLocationDetails($: cheerio.CheerioAPI, prop: Property): void {
   }
 }
 
-/**
- * Parse end date from text
- */
+/** Format: "03/07/2026 18:00" */
 function parseEndDate(dateText: string): Date {
-  // Expected format: "03/07/2026 18:00"
   const match = dateText.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
   if (match) {
     const [, day, month, year, hours, minutes] = match;
@@ -284,14 +223,10 @@ function parseEndDate(dateText: string): Date {
   return new Date();
 }
 
-/**
- * Extract price details from detail page
- */
 function extractPriceDetails($: cheerio.CheerioAPI, prop: Property): void {
   const $priceSection = $('[style*="grid-area:info"], .price-section');
   
   if ($priceSection.length > 0) {
-    // Extract current bid
     const currentBidText = extractPriceLabel($, 'Licitação atual');
     if (currentBidText) {
       const match = currentBidText.match(/([\d.,]+)\s*€/);
@@ -301,7 +236,6 @@ function extractPriceDetails($: cheerio.CheerioAPI, prop: Property): void {
       }
     }
 
-    // Extract opening value
     const openingValueText = extractPriceLabel($, 'Valor de Abertura');
     if (openingValueText) {
       const match = openingValueText.match(/([\d.,]+)\s*€/);
@@ -310,7 +244,6 @@ function extractPriceDetails($: cheerio.CheerioAPI, prop: Property): void {
       }
     }
 
-    // Extract base value
     const baseValueText = extractPriceLabel($, 'Valor base');
     if (baseValueText) {
       const match = baseValueText.match(/([\d.,]+)\s*€/);
@@ -319,7 +252,6 @@ function extractPriceDetails($: cheerio.CheerioAPI, prop: Property): void {
       }
     }
 
-    // Extract minimum value
     const minValueText = extractPriceLabel($, 'Valor Mínimo');
     if (minValueText && minValueText !== '---') {
       const match = minValueText.match(/([\d.,]+)\s*€/);
@@ -330,9 +262,6 @@ function extractPriceDetails($: cheerio.CheerioAPI, prop: Property): void {
   }
 }
 
-/**
- * Extract price by label
- */
 function extractPriceLabel($: cheerio.CheerioAPI, label: string): string | null {
   const $label = $(`span:contains("${label}")`);
   if ($label.length > 0) {
@@ -344,9 +273,6 @@ function extractPriceLabel($: cheerio.CheerioAPI, label: string): string | null 
   return null;
 }
 
-/**
- * Extract images from detail page
- */
 function extractImages($: cheerio.CheerioAPI): string[] {
   const images: string[] = [];
   
@@ -362,9 +288,6 @@ function extractImages($: cheerio.CheerioAPI): string[] {
   return images;
 }
 
-/**
- * Extract description from detail page
- */
 function extractDescription($: cheerio.CheerioAPI): string {
   const $descSection = $('h3:contains("Descrição"), div:contains("Descrição")').parent();
   if ($descSection.length > 0) {
@@ -376,13 +299,9 @@ function extractDescription($: cheerio.CheerioAPI): string {
   return '';
 }
 
-/**
- * Extract property features from detail page
- */
 function extractPropertyFeatures($: cheerio.CheerioAPI, prop: Property): void {
   const $detailsSection = $('h3:contains("Detalhes")').parent();
   if ($detailsSection.length > 0) {
-    // Extract area if mentioned in description
     const desc = prop.description;
     if (desc) {
       const areaMatch = desc.match(/(\d+(?:[.,]\d+)?)\s*m²/);

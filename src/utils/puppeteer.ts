@@ -4,40 +4,13 @@ import { type Browser, type Page, type LaunchOptions } from 'puppeteer';
 import { logger } from './logger.js';
 import { delay } from './http.js';
 
-// Register stealth plugin once
 puppeteerExtra.use(StealthPlugin());
 
-/**
- * Lightweight Puppeteer utility for scraping sites with WAF protection.
- *
- * This utility provides a simple interface to:
- * - Launch a headless browser (with stealth plugin for WAF bypass)
- * - Navigate to pages and wait for content
- * - Extract data from pages
- * - Clean up resources
- *
- * Usage:
- * ```typescript
- * const browser = await PuppeteerHelper.launch();
- * const page = await browser.newPage();
- * await PuppeteerHelper.goto(page, 'https://example.com');
- * const html = await page.content();
- * await browser.close();
- * ```
- */
+// Thin Puppeteer wrapper for sites whose WAFs block plain HTTP clients (launches with stealth plugin).
 export class PuppeteerHelper {
   private static browser: Browser | null = null;
 
-  /**
-   * Launch a Puppeteer browser instance with stealth plugin.
-   * Reuses existing instance if available.
-   *
-   * The stealth plugin helps bypass WAF protections by:
-   * - Masking automation indicators (navigator.webdriver)
-   * - Spoofing browser plugins and languages
-   * - Mocking Chrome runtime
-   * - Evasion of headless detection
-   */
+  // Singleton browser; the stealth plugin masks headless/automation signals for WAF bypass
   static async launch(): Promise<Browser> {
     if (this.browser) {
       return this.browser;
@@ -60,9 +33,6 @@ export class PuppeteerHelper {
     return this.browser;
   }
 
-  /**
-   * Close the browser instance.
-   */
   static async close(): Promise<void> {
     if (this.browser) {
       await this.browser.close();
@@ -71,14 +41,6 @@ export class PuppeteerHelper {
     }
   }
 
-  /**
-   * Navigate to a URL and wait for the page to load.
-   *
-   * @param page - Puppeteer page instance
-   * @param url - URL to navigate to
-   * @param waitForSelector - Optional CSS selector to wait for
-   * @param timeout - Timeout in milliseconds (default: 30000)
-   */
   static async goto(
     page: Page,
     url: string,
@@ -97,13 +59,6 @@ export class PuppeteerHelper {
     logger.debug(`[PuppeteerHelper] Navigated to ${url}`);
   }
 
-  /**
-   * Extract text content from a page using a CSS selector.
-   *
-   * @param page - Puppeteer page instance
-   * @param selector - CSS selector
-   * @returns Text content or null if not found
-   */
   static async getText(page: Page, selector: string): Promise<string | null> {
     try {
       const element = await page.$(selector);
@@ -115,13 +70,6 @@ export class PuppeteerHelper {
     }
   }
 
-  /**
-   * Extract HTML content from a page using a CSS selector.
-   *
-   * @param page - Puppeteer page instance
-   * @param selector - CSS selector
-   * @returns HTML content or null if not found
-   */
   static async getHtml(page: Page, selector: string): Promise<string | null> {
     try {
       const element = await page.$(selector);
@@ -133,14 +81,6 @@ export class PuppeteerHelper {
     }
   }
 
-  /**
-   * Extract an attribute from an element using a CSS selector.
-   *
-   * @param page - Puppeteer page instance
-   * @param selector - CSS selector
-   * @param attribute - Attribute name
-   * @returns Attribute value or null if not found
-   */
   static async getAttribute(
     page: Page,
     selector: string,
@@ -156,13 +96,6 @@ export class PuppeteerHelper {
     }
   }
 
-  /**
-   * Extract multiple elements' text content using a CSS selector.
-   *
-   * @param page - Puppeteer page instance
-   * @param selector - CSS selector
-   * @returns Array of text content
-   */
   static async getTexts(page: Page, selector: string): Promise<string[]> {
     try {
       return await page.evaluate((sel: string) => {
@@ -175,14 +108,6 @@ export class PuppeteerHelper {
     }
   }
 
-  /**
-   * Extract multiple elements' attributes using a CSS selector.
-   *
-   * @param page - Puppeteer page instance
-   * @param selector - CSS selector
-   * @param attribute - Attribute name
-   * @returns Array of attribute values
-   */
   static async getAttributes(
     page: Page,
     selector: string,
@@ -199,25 +124,10 @@ export class PuppeteerHelper {
     }
   }
 
-  /**
-   * Execute JavaScript code in the page context.
-   *
-   * @param page - Puppeteer page instance
-   * @param script - JavaScript function to execute
-   * @param args - Arguments to pass to the function
-   * @returns Result of the function execution
-   */
   static async evaluate<T>(page: Page, script: () => T): Promise<T> {
     return await page.evaluate(script);
   }
 
-  /**
-   * Wait for a selector to appear in the page.
-   *
-   * @param page - Puppeteer page instance
-   * @param selector - CSS selector
-   * @param timeout - Timeout in milliseconds (default: 30000)
-   */
   static async waitForSelector(
     page: Page,
     selector: string,
@@ -226,12 +136,7 @@ export class PuppeteerHelper {
     await page.waitForSelector(selector, { timeout });
   }
 
-  /**
-   * Scroll to the bottom of the page to trigger lazy loading.
-   *
-   * @param page - Puppeteer page instance
-   * @param maxScrolls - Maximum number of scroll attempts (default: 5)
-   */
+  // Scrolls to the bottom to trigger lazy loading
   static async scrollToBottom(page: Page, maxScrolls: number = 5): Promise<void> {
     for (let i = 0; i < maxScrolls; i++) {
       await page.evaluate(() => {
@@ -241,46 +146,19 @@ export class PuppeteerHelper {
     }
   }
 
-  /**
-   * Take a screenshot of the page (useful for debugging).
-   *
-   * @param page - Puppeteer page instance
-   * @param path - Path to save the screenshot
-   */
   static async screenshot(page: Page, path: string): Promise<void> {
     await page.screenshot({ path, fullPage: true });
     logger.debug(`[PuppeteerHelper] Screenshot saved to ${path}`);
   }
 
-  /**
-   * Get all cookies from the page.
-   *
-   * @param page - Puppeteer page instance
-   * @returns Array of cookies
-   */
   static async getCookies(page: Page): Promise<any[]> {
     return await page.cookies();
   }
 
-  /**
-   * Set cookies for the page.
-   *
-   * @param page - Puppeteer page instance
-   * @param cookies - Array of cookies
-   */
   static async setCookies(page: Page, cookies: any[]): Promise<void> {
     await page.setCookie(...cookies);
   }
 
-  /**
-   * Execute a function in the browser context with retry logic.
-   *
-   * @param page - Puppeteer page instance
-   * @param fn - Function to execute
-   * @param maxRetries - Maximum number of retries (default: 3)
-   * @param retryDelay - Delay between retries in milliseconds (default: 1000)
-   * @returns Result of the function execution
-   */
   static async retry<T>(
     page: Page,
     fn: () => Promise<T>,

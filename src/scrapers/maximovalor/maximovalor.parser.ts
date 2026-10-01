@@ -4,7 +4,6 @@ import { parsePrice, extractCoordinates } from '../../utils/parser.js';
 
 const BASE_URL = 'https://www.maximovalor.pt';
 
-// English month names for parsing
 const ENGLISH_MONTHS: Record<string, number> = {
   january: 0, jan: 0,
   february: 1, feb: 1,
@@ -20,13 +19,10 @@ const ENGLISH_MONTHS: Record<string, number> = {
   december: 11, dec: 11,
 };
 
-/**
- * Parses English date format: "10 July 2026 às 16:00" or "29 July 2026 às 16:00"
- */
+// Parses "10 July 2026 às 16:00" (English month, Portuguese "às")
 function parseEnglishDate(dateStr: string): Date | undefined {
   if (!dateStr) return undefined;
   
-  // Format: "Termina a 10 July 2026 às 16:00" or "(29 July 2026 às 16:00)"
   const match = dateStr.match(/(\d{1,2})\s+([a-zA-Z]+)\s+(\d{4})\s*[às]+\s*(\d{2}):(\d{2})/);
   if (!match) return undefined;
   
@@ -45,9 +41,7 @@ function parseEnglishDate(dateStr: string): Date | undefined {
   );
 }
 
-/**
- * Parses location string: "Albufeira, Faro" → { district: "Faro", municipality: "Albufeira" }
- */
+// Parses "Albufeira, Faro" -> { municipality, district }
 function parseLocation(locationStr: string): { district?: string; municipality?: string } {
   const parts = locationStr.split(',').map(p => p.trim());
   if (parts.length >= 2) {
@@ -70,22 +64,17 @@ export function parseMaximovalorListing(html: string, auctionType: string): Prop
     
     if (!href) return;
 
-    // Extract title
     const title = $el.find('.title').text().trim();
     
-    // Extract externalId from URL
     const urlParts = href.split('/').filter(Boolean);
     const externalId = urlParts[urlParts.length - 1] || href;
     
-    // Extract end date
     const endDateText = $el.find('.detail:first-child span').text().trim();
     const endDate = parseEnglishDate(endDateText);
     
-    // Extract location
     const locationText = $el.find('.detail:last-child span').text().trim();
     const { district, municipality } = parseLocation(locationText);
     
-    // Extract image from style attribute
     const thumbnail = $el.find('.thumbnail');
     const bgStyle = thumbnail.attr('style') || '';
     const imageMatch = bgStyle.match(/url\(['"]?([^'"]+)['"]?\)/);
@@ -113,14 +102,10 @@ export function parseMaximovalorListing(html: string, auctionType: string): Prop
   return properties;
 }
 
-/**
- * Extracts pagination information from the listing page.
- * Returns the next page URL if available.
- */
 export function extractPagination(html: string, baseUrl: string): string | undefined {
   const $ = cheerio.load(html);
   
-  // Find the next page link (chevron-right icon)
+  // next page link is the one with a chevron-right icon
   const nextLink = $('.paginacao li a .fa-chevron-right').closest('a');
   const href = nextLink.attr('href');
   
@@ -135,11 +120,9 @@ export function parseMaximovalorDetail(html: string, url: string): Partial<Prope
   const $ = cheerio.load(html);
   const result: Partial<Property> = {};
 
-  // Extract title
   const title = $('h1').text().trim();
   if (title) result.title = title;
 
-  // Extract location from location table
   const locationFields = $('.location-table .field');
   if (locationFields.length >= 1) {
     const district = $(locationFields[0]).find('.value').text().trim();
@@ -157,18 +140,15 @@ export function parseMaximovalorDetail(html: string, url: string): Partial<Prope
     }
   }
 
-  // Extract end date
   const endDateText = $('.ending .date').text().trim();
   const endDate = parseEnglishDate(endDateText);
   if (endDate) result.publishedAt = endDate;
 
-  // Extract description
   const description = $('.bo-content').text().trim();
   if (description) {
     result.description = (result.description || '') + '\n\n' + description;
   }
 
-  // Extract auction values
   const auctionValues = $('.auction-values .item');
   let price = 0;
   let openingValue: number | undefined;
@@ -194,7 +174,6 @@ export function parseMaximovalorDetail(html: string, url: string): Partial<Prope
   if (openingValue) result.openingValue = openingValue;
   if (minSaleValue) result.minSaleValue = minSaleValue;
 
-  // Extract latest bid
   const latestBidText = $('.latest').text().trim();
   const latestBidMatch = latestBidText.match(/([\d\s.,]+)\s*€/);
   if (latestBidMatch) {
@@ -205,7 +184,6 @@ export function parseMaximovalorDetail(html: string, url: string): Partial<Prope
     }
   }
 
-  // Extract images from gallery
   const images: string[] = [];
   $('.gallery .item').each((_, el) => {
     const $el = $(el);
@@ -217,7 +195,6 @@ export function parseMaximovalorDetail(html: string, url: string): Partial<Prope
   });
   if (images.length > 0) result.images = images;
 
-  // Extract document links
   const documents: string[] = [];
   $('.listing-pdfs a').each((_, el) => {
     const $el = $(el);

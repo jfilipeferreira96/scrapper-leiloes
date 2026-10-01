@@ -64,9 +64,6 @@ export class ImolorienteScraper extends BaseScraper {
     return allProperties;
   }
 
-  /**
-   * Enrich a single Property with detail page data.
-   */
   protected async enrichDetail(base: Property): Promise<Property> {
     if (!base.url) return base;
 
@@ -77,7 +74,6 @@ export class ImolorienteScraper extends BaseScraper {
       return {
         ...base,
         ...detail,
-        // Keep listing images if detail didn't provide any
         images: detail.images?.length ? detail.images : base.images,
       };
     } catch (error) {

@@ -45,7 +45,6 @@ export const SCRAPERS: Record<string, Scraper> = {
 export function getActiveScrapers(): Scraper[] {
   const active = config.activeScrapers.filter((s) => s.length > 0);
 
-  // If no scrapers specified, run all registered scrapers
   if (active.length === 0) {
     return Object.values(SCRAPERS);
   }

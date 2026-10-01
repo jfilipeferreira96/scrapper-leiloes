@@ -1,20 +1,15 @@
-/**
- * Converts Portuguese price strings ("120.000,00 €" or "120000") to a number.
- */
 export function parsePrice(raw: string | undefined | null): number {
   if (!raw) return 0;
+  // 120.000,00 -> 120000.00
   const cleaned = raw
     .replace(/[€$\s]/g, "")
-    .replace(/\./g, "")      // remove thousand separator
-    .replace(",", ".")       // comma decimal → period
+    .replace(/\./g, "")
+    .replace(",", ".")
     .replace(/[^0-9.]/g, "");
   const num = parseFloat(cleaned);
   return isNaN(num) ? 0 : num;
 }
 
-/**
- * Converts "150 m²" or "150m2" to a number.
- */
 export function parseArea(raw: string | undefined | null): number | undefined {
   if (!raw) return undefined;
   const match = raw.replace(/[m²²]/gi, "").match(/[\d.,]+/);
@@ -23,9 +18,6 @@ export function parseArea(raw: string | undefined | null): number | undefined {
   return isNaN(num) ? undefined : num;
 }
 
-/**
- * Extracts number of rooms from strings like "T3", "3 quartos".
- */
 export function parseRooms(raw: string | undefined | null): number | undefined {
   if (!raw) return undefined;
   const tMatch = raw.match(/T\s*(\d+)/i);
@@ -35,27 +27,17 @@ export function parseRooms(raw: string | undefined | null): number | undefined {
   return undefined;
 }
 
-/**
- * Parses a Portuguese-formatted date string.
- *
- * Handles three known formats used by the auction sites:
- *  1. Numeric: "2026-05-27 pelas 09:00" or "2026-05-27"
- *  2. Long:    "27 de maio de 2026 - 09:00:00"
- *  3. Short:   "15/06/2026 09:00:00" (DD/MM/YYYY HH:mm:ss)
- *
- * @param raw - Date string in one of the supported formats
- * @returns Parsed Date, or undefined if it cannot be parsed
- */
+// Handles the formats seen on the auction sites:
+// "2026-05-27 pelas 09:00", "27 de maio de 2026 - 09:00:00", "15/06/2026 09:00:00"
 export function parsePortugueseDate(
   raw: string | undefined | null
 ): Date | undefined {
   if (!raw) return undefined;
 
-  // Map of Portuguese month names (lowercase, without diacritics) → month index
   const months: Record<string, number> = {
     janeiro: 0,
     fevereiro: 1,
-    marco: 2, // "março" → "marco" after diacritic removal
+    marco: 2,
     abril: 3,
     maio: 4,
     junho: 5,
@@ -67,15 +49,12 @@ export function parsePortugueseDate(
     dezembro: 11,
   };
 
-  // Inline normalization (same logic as config/locations.ts) to keep this
-  // utility self-contained — no cross-module dependency for a small helper.
   const normalized = raw
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .trim()
     .toLowerCase();
 
-  // 1. Short format: "15/06/2026 09:00:00" (DD/MM/YYYY HH:mm:ss)
   const shortMatch = raw.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/);
   if (shortMatch) {
     const [, day, month, year, hours, minutes, seconds] = shortMatch;
@@ -89,7 +68,6 @@ export function parsePortugueseDate(
     );
   }
 
-  // 2. Long format: "27 de maio de 2026 - 09:00:00"
   const longMatch = normalized.match(
     /(\d+)\s+de\s+([a-z]+)\s+de\s+(\d+)\s*-?\s*(\d+):(\d+)(?::(\d+))?/
   );
@@ -107,36 +85,20 @@ export function parsePortugueseDate(
     );
   }
 
-  // 3. Numeric format: "2026-05-27 pelas 09:00" or "2026-05-27"
   const numericMatch = normalized.match(/(\d{4})-(\d{2})-(\d{2})/);
   if (numericMatch) {
     const [, year, month, day] = numericMatch;
-    return new Date(
-      parseInt(year),
-      parseInt(month) - 1,
-      parseInt(day)
-    );
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
   }
 
   return undefined;
 }
 
-/**
- * Extracts GPS coordinates from a Google Maps URL.
- *
- * Handles the patterns used by the different auction sites:
- *  - Query param:  ?q=41.0411458,-8.6070196  or  ?query=40.725549,-8.045863
- *  - Iframe src:   https://maps.google.com/maps?q=41.0411458, -8.6070196&...
- *
- * @param url - URL that may contain coordinates
- * @returns Object with lat/lon, or undefined if not found
- */
 export function extractCoordinates(
   url: string | undefined | null
 ): { lat: number; lon: number } | undefined {
   if (!url) return undefined;
 
-  // Match "q=12.34, -56.78" or "query=12.34,-56.78"
   const match = url.match(/(?:q|query)=(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/);
   if (!match) return undefined;
 

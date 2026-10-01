@@ -2,13 +2,6 @@ import * as cheerio from "cheerio";
 import type { Property } from "../../models/property.js";
 import { parseArea, parseRooms, parsePrice } from "../../utils/parser.js";
 
-/**
- * Parses the OneFix listing page HTML.
- * Based on the real selectors identified in INSTRUCTIONS.md.
- *
- * @param html - Raw HTML of the listing page
- * @returns Extracted Property list + next page URL (null if last page)
- */
 export function parseOneFixListing(html: string): {
   properties: Property[];
   nextUrl: string | null;
@@ -20,14 +13,13 @@ export function parseOneFixListing(html: string): {
     const $card = $(card);
     const href = $card.find(".img_area a").attr("href") || "";
     const idMatch = href.match(/\/verba\/(\d+)\//);
-    if (!idMatch) return; // skip if no ID
+    if (!idMatch) return;
 
     const externalId = idMatch[1];
     const title = $card.find(".property-title").text().trim();
     const locationRaw = $card.find(".property-text span").first().text().trim();
     const [parish, municipality] = locationRaw.split(",").map((s) => s.trim());
 
-    // Thumbnail
     const imgSrc = $card.find(".img_area img").attr("src") || "";
     const thumbnail = imgSrc ? `https://www.onefix-leiloeiros.pt${imgSrc}` : "";
 
@@ -55,10 +47,6 @@ export function parseOneFixListing(html: string): {
   return { properties, nextUrl };
 }
 
-/**
- * Extracts the next page URL from the current HTML.
- * Returns null if there are no more pages.
- */
 function extractNextPageUrl($: cheerio.CheerioAPI): string | null {
   const pagination = $("ul.pagination.custom-pagination");
   if (pagination.length === 0) return null;
@@ -75,14 +63,6 @@ function extractNextPageUrl($: cheerio.CheerioAPI): string | null {
   return nextUrl;
 }
 
-/**
- * Parses the OneFix detail page HTML.
- * Enriches the base Property with complete data.
- *
- * @param html - Raw HTML of the detail page
- * @param base - Base Property from the listing
- * @returns Complete Property with detail data
- */
 export function parseOneFixDetail(html: string, base: Property): Property {
   const $ = cheerio.load(html);
 
@@ -100,9 +80,6 @@ export function parseOneFixDetail(html: string, base: Property): Property {
   };
 }
 
-/**
- * Extracts the opening value (Valor de Abertura) from the sidebar.
- */
 function extractOpeningValue($: cheerio.CheerioAPI): number {
   const sidebarItems = $(".property_sidebar li");
   let price = 0;
@@ -123,9 +100,6 @@ function extractOpeningValue($: cheerio.CheerioAPI): number {
   return price;
 }
 
-/**
- * Extracts the minimum sale value (Valor Mínimo de Venda) from the sidebar.
- */
 function extractMinSaleValue($: cheerio.CheerioAPI): number | undefined {
   const sidebarItems = $(".property_sidebar li");
   let minSaleValue: number | undefined;
@@ -141,10 +115,7 @@ function extractMinSaleValue($: cheerio.CheerioAPI): number | undefined {
   return minSaleValue;
 }
 
-/**
- * Extracts the current bid (Valor última licitação) from the sidebar.
- * Note: The label on the site is "Valor última licitação", not "Licitação Atual".
- */
+// site label is "última licitação", not "Licitação Atual"
 function extractCurrentBid($: cheerio.CheerioAPI): number | undefined {
   const sidebarItems = $(".property_sidebar li");
   let currentBid: number | undefined;
@@ -160,10 +131,7 @@ function extractCurrentBid($: cheerio.CheerioAPI): number | undefined {
   return currentBid;
 }
 
-/**
- * Extracts GPS (latitude/longitude) from the location tab.
- * Uses regex on the full panel text for robustness.
- */
+// GPS is plain text inside the location tab panel
 function extractGps($: cheerio.CheerioAPI): { lat: number; lng: number } | undefined {
   const panel = $("#tb-panel-4");
   if (panel.length === 0) return undefined;
@@ -181,9 +149,6 @@ function extractGps($: cheerio.CheerioAPI): { lat: number; lng: number } | undef
   return undefined;
 }
 
-/**
- * Extracts the description from paragraphs in the details tab.
- */
 function extractDescription($: cheerio.CheerioAPI): string | undefined {
   const descriptionParagraphs: string[] = [];
   $("#tb-panel-1 p").each((_, el) => {
@@ -194,9 +159,6 @@ function extractDescription($: cheerio.CheerioAPI): string | undefined {
   return description || undefined;
 }
 
-/**
- * Extracts images from the gallery.
- */
 function extractGalleryImages($: cheerio.CheerioAPI): string[] {
   const images: string[] = [];
   $("div.gallery-item-main img.imagem-verba-principal").each((_, el) => {
@@ -206,9 +168,6 @@ function extractGalleryImages($: cheerio.CheerioAPI): string[] {
   return images;
 }
 
-/**
- * Extracts the auction start date.
- */
 function extractStartDate($: cheerio.CheerioAPI): Date | undefined {
   let publishedAt: Date | undefined;
   $(".property_sidebar li").each((i, el) => {

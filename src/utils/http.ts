@@ -1,10 +1,4 @@
-/**
- * Shared HTTP utilities for all scrapers.
- *
- * Centralizes the fetch logic (axios + standard browser headers) and the
- * delay helper so that every scraper behaves identically and changes only
- * need to be made in one place.
- */
+// Shared HTTP helpers (axios + standard browser headers) used by all scrapers.
 
 import axios from "axios";
 import { config } from "../config/index.js";
@@ -16,16 +10,6 @@ const DEFAULT_HEADERS = {
   "Accept-Language": "pt-PT,pt;q=0.9,en;q=0.8",
 };
 
-/**
- * Fetches a page and returns its raw HTML content.
- *
- * Uses the global User-Agent and request timeout from config, so all
- * scrapers share the same behavior.
- *
- * @param url - URL to fetch
- * @param cookieStr - Optional Cookie header value (e.g., "PHPSESSID=abc123")
- * @returns Raw HTML string
- */
 export async function fetchPage(url: string, cookieStr?: string): Promise<string> {
   const headers = cookieStr
     ? { ...DEFAULT_HEADERS, Cookie: cookieStr }
@@ -37,16 +21,7 @@ export async function fetchPage(url: string, cookieStr?: string): Promise<string
   return response.data;
 }
 
-/**
- * Fetches a page and returns both HTML and Set-Cookie headers.
- *
- * Used by scrapers that need session cookies (e.g., avaliberica.pt requires
- * PHPSESSID from the listing page to access detail pages).
- *
- * @param url - URL to fetch
- * @param cookieStr - Optional Cookie header value for sending existing cookies
- * @returns Object with HTML content and cookie string extracted from Set-Cookie
- */
+// Used when a site needs session cookies (avaliberica.pt requires the PHPSESSID from the listing page)
 export async function fetchPageWithCookies(
   url: string,
   cookieStr?: string
@@ -59,7 +34,6 @@ export async function fetchPageWithCookies(
     timeout: config.requestTimeout,
   });
 
-  // Extract cookie pairs from Set-Cookie headers
   const setCookies = response.headers["set-cookie"];
   const cookies = setCookies
     ? setCookies.map((c: string) => c.split(";")[0]).join("; ")
@@ -68,18 +42,7 @@ export async function fetchPageWithCookies(
   return { html: response.data, cookies };
 }
 
-/**
- * POST form data to a page and return HTML + Set-Cookie headers.
- *
- * Used by scrapers that need to submit filter forms and capture a session
- * cookie (e.g., leiloeiradolena.com uses POST to initialise the listing
- * session, then GET for pagination).
- *
- * @param url - URL to POST to
- * @param formData - Object of form field name → value pairs
- * @param cookieStr - Optional Cookie header value for sending existing cookies
- * @returns Object with HTML content and cookie string extracted from Set-Cookie
- */
+// Used when a site initialises its listing session via POST and tracks it via cookie (leiloeiradolena.com)
 export async function fetchPagePost(
   url: string,
   formData: Record<string, string>,
@@ -100,7 +63,6 @@ export async function fetchPagePost(
     validateStatus: (status) => status < 400,
   });
 
-  // Extract cookie pairs from Set-Cookie headers
   const setCookies = response.headers["set-cookie"];
   const cookies = setCookies
     ? setCookies.map((c: string) => c.split(";")[0]).join("; ")
@@ -109,12 +71,6 @@ export async function fetchPagePost(
   return { html: response.data, cookies };
 }
 
-/**
- * Returns a promise that resolves after the given number of milliseconds.
- * Used to throttle detail-page requests and avoid rate limiting.
- *
- * @param ms - Milliseconds to wait
- */
 export function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

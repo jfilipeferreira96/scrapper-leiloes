@@ -1,4 +1,4 @@
-// Static listing page — all items on one page, no pagination needed.
+// Static listing page: all items on one page, no pagination.
 
 import { BaseScraper } from "../base.scraper.js";
 import type { Property } from "../../models/property.js";
