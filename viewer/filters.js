@@ -1,4 +1,4 @@
-// Zonas de Interesse — edita as localizações conforme necessário.
+// Zonas de Interesse: edita as localizações conforme necessário.
 // As seleções do utilizador são guardadas em localStorage.
 
 window.__FILTERS__ = {
