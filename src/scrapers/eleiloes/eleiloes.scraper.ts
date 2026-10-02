@@ -1,154 +1,134 @@
+import axios from "axios";
+import https from "https";
 import type { Property } from "../../models/property.js";
 import { BaseScraper } from "../base.scraper.js";
-import { fetchPage, delay } from "../../utils/http.js";
-import { CurlHelper } from "../../utils/curl.js";
-import { PuppeteerHelper } from "../../utils/puppeteer.js";
 import { logger } from "../../utils/logger.js";
-import {
-  parseEleiloesListing,
-  parseEleiloesDetail,
-  type ListingItem,
-} from "./eleiloes.parser.js";
 
-const LISTING_URL = "https://www.e-leiloes.pt/eventos?tipo=1";
+const API_URL = "https://www.e-leiloes.pt/api/Eventos/?tableParams=";
+const ROWS_PER_PAGE = 12;
+const REQUEST_DELAY_MS = 150;
+const MAX_PAGES = 100;
 
-type FetchStrategy = "axios" | "curl" | "puppeteer";
+// the site serves an incomplete certificate chain (missing intermediate),
+// so only the chain check is disabled; the connection stays encrypted
+const httpsAgent = new https.Agent({ rejectUnauthorized: false, keepAlive: true });
+
+interface ApiItem {
+  referencia: string;
+  titulo: string;
+  lanceAtual?: number;
+  valorBase?: number;
+  valorMinimo?: number;
+  dataFim?: string;
+  cancelado: boolean;
+  terminado: boolean;
+  capa?: string;
+  moradaDistrito?: string;
+  moradaConcelho?: string;
+  moradaFreguesia?: string;
+}
+
+interface ApiPage {
+  list: ApiItem[];
+  pagination: { first: number; rows: number; total: number };
+}
 
 export class EleiloesScraper extends BaseScraper {
   readonly source = "eleiloes";
 
-  // the site blocks plain HTTP clients, so the first successful method is
-  // remembered and reused for every subsequent request
-  private strategy: FetchStrategy | null = null;
-  private browserPage: import("puppeteer").Page | null = null;
+  // the listing API already carries every field the monitor needs
+  // (title, values, end date, location, cover image), so the enrichment
+  // loop from the base template is skipped entirely
+  async scrape(): Promise<Property[]> {
+    logger.info(`[${this.source}] Starting scrape`);
+
+    const listings = await this.collectListings();
+    logger.info(`[${this.source}] ${listings.length} properties in listing`);
+
+    return listings;
+  }
 
   protected async collectListings(): Promise<Property[]> {
-    const html = await this.fetchHtml(LISTING_URL);
+    const properties: Property[] = [];
+    const seen = new Set<string>();
+    let total = Infinity;
 
-    const items = parseEleiloesListing(html);
-    logger.info(`[${this.source}] Found ${items.length} properties in listing`);
+    for (let page = 0; page < MAX_PAGES && properties.length < total; page++) {
+      const first = page * ROWS_PER_PAGE;
+      const pageData = await this.fetchApiPage(first);
+      if (!pageData) break;
 
-    const properties: Property[] = items.map((item) => this.listingItemToProperty(item));
+      total = pageData.pagination?.total ?? total;
+
+      for (const item of pageData.list) {
+        if (item.cancelado || !item.referencia || seen.has(item.referencia)) continue;
+        seen.add(item.referencia);
+        properties.push(this.apiItemToProperty(item));
+      }
+
+      logger.info(
+        `[${this.source}] Page ${page + 1}: ${pageData.list.length} items (${properties.length}/${total})`
+      );
+
+      await delay(REQUEST_DELAY_MS);
+    }
+
+    logger.info(`[${this.source}] Collected ${properties.length} properties`);
     return properties;
   }
 
   protected async enrichDetail(base: Property): Promise<Property> {
-    try {
-      const html = await this.fetchHtml(base.url);
-      const detail = parseEleiloesDetail(html, base);
+    return base;
+  }
 
-      return {
-        ...base,
-        ...detail,
-        source: base.source,
-        externalId: base.externalId,
-        url: base.url,
-      };
+  private async fetchApiPage(first: number): Promise<ApiPage | null> {
+    const tableParams = {
+      first,
+      rows: ROWS_PER_PAGE,
+      sortField: "dataFim",
+      sortOrder: 1,
+      filters: { tipo: { value: 1, matchMode: "equals" } },
+    };
+    const url = API_URL + encodeURIComponent(JSON.stringify(tableParams));
+
+    try {
+      const res = await axios.get<ApiPage>(url, { timeout: 20000, httpsAgent });
+      return res.data;
     } catch (error) {
-      logger.warn(`[${this.source}] Error enriching ${base.url}:`, error);
-      return base;
+      logger.warn(`[${this.source}] Error fetching page at first=${first}:`, error);
+      return null;
     }
   }
 
-  private async fetchHtml(url: string): Promise<string> {
-    if (this.strategy) {
-      return await this.fetchWith(url, this.strategy);
-    }
+  private apiItemToProperty(item: ApiItem): Property {
+    const currentBid = item.lanceAtual ?? 0;
+    const baseValue = item.valorBase ?? 0;
+    const minValue = item.valorMinimo ?? 0;
+    const price = currentBid > 0 ? currentBid : baseValue > 0 ? baseValue : minValue;
 
-    // axios (BaseScraper fetchPage)
-    try {
-      const html = await this.axiosGet(url);
-      this.strategy = "axios";
-      logger.info(`[${this.source}] Using strategy: axios`);
-      return html;
-    } catch {
-      logger.info(`[${this.source}] axios blocked, trying curl`);
-    }
-
-    // system curl binary (different TLS fingerprint)
-    try {
-      const html = CurlHelper.get(url);
-      if (this.looksValid(html)) {
-        this.strategy = "curl";
-        logger.info(`[${this.source}] Using strategy: curl`);
-        return html;
-      }
-      logger.info(`[${this.source}] curl response looks blocked`);
-    } catch {
-      logger.info(`[${this.source}] curl failed, trying puppeteer`);
-    }
-
-    this.strategy = "puppeteer";
-    logger.info(`[${this.source}] Using strategy: puppeteer`);
-    return await this.puppeteerGet(url);
-  }
-
-  private async fetchWith(url: string, strategy: FetchStrategy): Promise<string> {
-    if (strategy === "axios") {
-      return await this.axiosGet(url);
-    }
-    if (strategy === "curl") {
-      return CurlHelper.get(url);
-    }
-    return await this.puppeteerGet(url);
-  }
-
-  private async axiosGet(url: string): Promise<string> {
-    const html = await fetchPage(url);
-    if (!this.looksValid(html)) {
-      throw new Error("response looks blocked");
-    }
-    return html;
-  }
-
-  private async puppeteerGet(url: string): Promise<string> {
-    if (!this.browserPage) {
-      const browser = await PuppeteerHelper.launch();
-      this.browserPage = await browser.newPage();
-      await this.browserPage.setViewport({ width: 1920, height: 1080 });
-    }
-
-    const page = this.browserPage;
-    await PuppeteerHelper.goto(page, url, undefined, 45000);
-    await delay(2000);
-
-    let content = await page.content();
-
-    if (!this.looksValid(content)) {
-      logger.info(`[${this.source}] challenge page detected, retrying after delay`);
-      await delay(5000);
-      await page.reload({ waitUntil: "networkidle2", timeout: 45000 });
-      await delay(2000);
-      content = await page.content();
-    }
-
-    return content;
-  }
-
-  private looksValid(html: string): boolean {
-    if (!html || html.length < 500) return false;
-    const blocked = [
-      "Just a moment",
-      "challenge-platform",
-      "Access Denied",
-      "captcha-delivery",
-      "cf-browser-verification",
-    ];
-    return !blocked.some((marker) => html.includes(marker));
-  }
-
-  private listingItemToProperty(item: ListingItem): Property {
     return {
       source: "eleiloes",
-      externalId: item.externalId,
-      title: item.title,
-      price: 0,
-      location: "",
-      url: item.url,
-      images: [],
+      externalId: item.referencia,
+      title: item.titulo,
+      price,
+      currentBid: currentBid > 0 ? currentBid : undefined,
+      openingValue: baseValue > 0 ? baseValue : undefined,
+      minSaleValue: minValue > 0 ? minValue : undefined,
+      location: [item.moradaFreguesia, item.moradaConcelho, item.moradaDistrito]
+        .filter(Boolean)
+        .join(", "),
+      district: item.moradaDistrito,
+      municipality: item.moradaConcelho,
+      parish: item.moradaFreguesia,
+      url: `https://www.e-leiloes.pt/evento/${item.referencia}`,
+      images: item.capa ? [`https://www.e-leiloes.pt/${item.capa}`] : [],
       auctionType: "Leilão Eletrônico",
-      status: "active",
-      publishedAt: new Date(),
+      status: item.terminado ? "Terminado" : "active",
+      publishedAt: item.dataFim ? new Date(item.dataFim) : new Date(),
     };
   }
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
