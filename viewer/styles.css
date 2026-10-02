@@ -363,6 +363,49 @@ body {
   border-radius: 9999px;
   margin-right: .3rem;
 }
+.src-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: .15rem;
+  border: none;
+  background: transparent;
+  padding: .15rem .35rem;
+  border-radius: .3rem;
+  font-size: inherit;
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: background .1s;
+}
+.src-toggle:hover {
+  background: #f1f5f9;
+}
+.dark .src-toggle:hover {
+  background: #334155;
+}
+.src-toggle.off .src-name {
+  text-decoration: line-through;
+  opacity: .55;
+}
+.src-toggle.off .src-count {
+  opacity: .45;
+}
+.src-reset {
+  border: none;
+  background: transparent;
+  padding: .15rem .3rem;
+  font-size: .72rem;
+  font-weight: 500;
+  font-family: inherit;
+  color: #1d4ed8;
+  cursor: pointer;
+}
+.src-reset:hover {
+  text-decoration: underline;
+}
+.dark .src-reset {
+  color: #60a5fa;
+}
 
 /* Zone group card */
 .zone-group-card {

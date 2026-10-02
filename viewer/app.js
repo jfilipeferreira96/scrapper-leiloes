@@ -14,7 +14,19 @@
   const isRemoved = (p) => !!p.removedAt;
 
   const liveData = () =>
-    (DATA.allProperties || []).filter((p) => !EXCL_SET.has(p.url) && !isRemoved(p));
+    (DATA.allProperties || []).filter((p) => !EXCL_SET.has(p.url) && !isRemoved(p) && srcOn(p));
+
+  // fontes desligadas (clique na legenda); guardado no localStorage
+  const SOURCE_OFF = new Set();
+  try {
+    JSON.parse(localStorage.getItem('leiloes_src_off') || '[]').forEach((s) => SOURCE_OFF.add(s));
+  } catch (e) {
+    /* ignore */
+  }
+
+  const srcOn = (p) => !SOURCE_OFF.has(p.source);
+
+  const saveSrcOff = () => localStorage.setItem('leiloes_src_off', JSON.stringify([...SOURCE_OFF]));
 
   const normText = (text) =>
     (text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
@@ -164,7 +176,7 @@
   const zonesFiltered = () => {
     if (!LOCS_NORM.length) return [];
     return (DATA.allProperties || []).filter((p) => {
-      if (EXCL_SET.has(p.url) || isRemoved(p)) return false;
+      if (EXCL_SET.has(p.url) || isRemoved(p) || !srcOn(p)) return false;
       const district = normText(p.district || '');
       const parish = normText(p.parish || '');
       const muni = normText(p.municipality || '');
@@ -182,13 +194,13 @@
   };
 
   const baseData = () => {
-    if (state.view === 'new') return DATA.newProperties || [];
+    if (state.view === 'new') return (DATA.newProperties || []).filter((p) => srcOn(p));
     if (state.view === 'zones') return zonesFiltered();
     if (state.view === 'favorites') {
-      return (DATA.allProperties || []).filter((p) => FAV_SET.has(p.url));
+      return (DATA.allProperties || []).filter((p) => FAV_SET.has(p.url) && srcOn(p));
     }
     if (state.view === 'excluded') {
-      return (DATA.allProperties || []).filter((p) => EXCL_SET.has(p.url) || isRemoved(p));
+      return (DATA.allProperties || []).filter((p) => (EXCL_SET.has(p.url) || isRemoved(p)) && srcOn(p));
     }
     return liveData();
   };
@@ -559,17 +571,59 @@
 
   const renderSourceLegend = () => {
     const counts = {};
-    liveData().forEach((p) => {
-      counts[p.source] = (counts[p.source] || 0) + 1;
+    (DATA.allProperties || []).forEach((p) => {
+      if (!EXCL_SET.has(p.url) && !isRemoved(p)) {
+        counts[p.source] = (counts[p.source] || 0) + 1;
+      }
     });
+
     const html = Object.keys(SOURCES)
       .map((src) => {
         const count = counts[src] || 0;
         if (!count) return '';
-        return `<span class="inline-flex items-center"><span class="legend-dot" style="background:${SOURCES[src]}"></span>${esc(src)} <span class="text-slate-400 dark:text-slate-600 ml-0.5">(${count})</span></span>`;
+        const off = SOURCE_OFF.has(src);
+        return `<button class="src-toggle${off ? ' off' : ''}" data-src="${esc(src)}" title="${off ? 'Ativar' : 'Desativar'} ${esc(src)}">
+          <span class="legend-dot" style="background:${off ? '#94a3b8' : SOURCES[src]}"></span>
+          <span class="src-name">${esc(src)}</span>
+          <span class="src-count">(${count})</span>
+        </button>`;
       })
       .join('');
-    document.getElementById('sourceLegend').innerHTML = html;
+
+    const resetBtn = SOURCE_OFF.size > 0
+      ? '<button id="srcResetAll" class="src-reset">restaurar todas</button>'
+      : '';
+
+    document.getElementById('sourceLegend').innerHTML = html + resetBtn;
+
+    document.querySelectorAll('#sourceLegend .src-toggle').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const src = btn.dataset.src;
+        if (SOURCE_OFF.has(src)) SOURCE_OFF.delete(src);
+        else SOURCE_OFF.add(src);
+        saveSrcOff();
+        state.page = 1;
+        populateFilters();
+        renderSourceLegend();
+        updateBadges();
+        updateZonesBadge();
+        renderAll();
+      });
+    });
+
+    const reset = document.getElementById('srcResetAll');
+    if (reset) {
+      reset.addEventListener('click', () => {
+        SOURCE_OFF.clear();
+        saveSrcOff();
+        state.page = 1;
+        populateFilters();
+        renderSourceLegend();
+        updateBadges();
+        updateZonesBadge();
+        renderAll();
+      });
+    }
   };
 
   const clearPricePresets = () => {
@@ -586,8 +640,10 @@
   };
 
   const updateBadges = () => {
-    document.getElementById('favBadge').textContent = FAV_SET.size;
-    document.getElementById('exclBadge').textContent = EXCL_SET.size;
+    document.getElementById('favBadge').textContent =
+      (DATA.allProperties || []).filter((p) => FAV_SET.has(p.url) && srcOn(p)).length;
+    document.getElementById('exclBadge').textContent =
+      (DATA.allProperties || []).filter((p) => (EXCL_SET.has(p.url) || isRemoved(p)) && srcOn(p)).length;
   };
 
   const openZoneModal = () => {
@@ -874,7 +930,8 @@
         `Atualizado a ${new Date(DATA.generatedAt).toLocaleString('pt-PT')}`;
     }
 
-    document.getElementById('newBadge').textContent = (DATA.newProperties || []).length;
+    document.getElementById('newBadge').textContent =
+      (DATA.newProperties || []).filter((p) => srcOn(p)).length;
     updateZonesBadge();
     updateBadges();
 
