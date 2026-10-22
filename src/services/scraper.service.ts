@@ -40,9 +40,10 @@ export async function runAllScrapers(): Promise<ScrapeRun> {
     const startedAt = Date.now();
     try {
       logger.info(`[scraper-service] Running ${scraper.source}...`);
+      const timeoutMs = scraper.timeoutMs ?? config.scraperTimeoutMs;
       const props = await withTimeout(
         scraper.scrape(),
-        config.scraperTimeoutMs,
+        timeoutMs,
         scraper.source,
       );
       properties.push(...props);

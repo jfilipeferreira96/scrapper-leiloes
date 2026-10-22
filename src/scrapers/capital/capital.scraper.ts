@@ -13,6 +13,8 @@ const LISTING_PATH = "/index.php?page=bem_list&natureza=IMOVEL";
 export class CapitalScraper extends BaseScraper {
   readonly source = "capital";
 
+  protected override readonly DETAIL_DELAY_MS = 1500;
+
   private listingItems = new Map<string, ListingItem>();
 
   protected async collectListings(): Promise<Property[]> {

@@ -4,13 +4,14 @@ import { fetchPage, delay } from "../utils/http.js";
 
 export interface Scraper {
   readonly source: string;
+  readonly timeoutMs?: number;
   scrape(): Promise<Property[]>;
 }
 
 export abstract class BaseScraper implements Scraper {
   abstract readonly source: string;
 
-  protected readonly DETAIL_DELAY_MS = 1000;
+  protected readonly DETAIL_DELAY_MS: number = 1000;
 
   protected fetchPage = fetchPage;
   protected delay = delay;

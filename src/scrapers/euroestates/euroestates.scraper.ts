@@ -9,36 +9,64 @@ import {
 
 const LISTING_URL = "https://euroestates.pt/realestate/list/";
 const MAX_PAGES = 50;
+const LISTING_CONCURRENCY = 4;
 
 export class EuroestatesScraper extends BaseScraper {
   readonly source = "euroestates";
+  readonly timeoutMs = 600000;
+
+  protected override readonly DETAIL_DELAY_MS = 300;
 
   private listingItems = new Map<string, ListingItem>();
 
   protected async collectListings(): Promise<Property[]> {
     const allItems: ListingItem[] = [];
+    let page = 1;
 
-    for (let page = 1; page <= MAX_PAGES; page++) {
-      try {
-        const url = `${LISTING_URL}${page}`;
-        logger.info(`[${this.source}] Fetching listing page ${page}: ${url}`);
+    while (page <= MAX_PAGES) {
+      const pages: number[] = [];
+      for (let i = 0; i < LISTING_CONCURRENCY && page + i <= MAX_PAGES; i++) {
+        pages.push(page + i);
+      }
 
-        const html = await this.fetchPage(url);
-        const items = parseEuroestatesListing(html);
+      const results = await Promise.all(
+        pages.map(async (pageNumber) => {
+          const url = `${LISTING_URL}${pageNumber}`;
+          logger.info(
+            `[${this.source}] Fetching listing page ${pageNumber}: ${url}`
+          );
 
-        if (items.length === 0) {
-          logger.info(`[${this.source}] No items on page ${page}, stopping`);
+          try {
+            const html = await this.fetchPage(url);
+            return { page: pageNumber, items: parseEuroestatesListing(html) };
+          } catch (error) {
+            logger.warn(
+              `[${this.source}] Error fetching listing page ${pageNumber}:`,
+              error
+            );
+            return { page: pageNumber, items: [] as ListingItem[] };
+          }
+        })
+      );
+
+      let stop = false;
+      for (const result of results) {
+        if (result.items.length === 0) {
+          logger.info(
+            `[${this.source}] No items on page ${result.page}, stopping`
+          );
+          stop = true;
           break;
         }
 
-        allItems.push(...items);
-        logger.info(`[${this.source}] Page ${page}: ${items.length} items`);
-
-        await this.delay(this.DETAIL_DELAY_MS);
-      } catch (error) {
-        logger.warn(`[${this.source}] Error fetching listing page ${page}:`, error);
-        break;
+        allItems.push(...result.items);
+        logger.info(
+          `[${this.source}] Page ${result.page}: ${result.items.length} items`
+        );
       }
+      if (stop) break;
+
+      page += pages.length;
     }
 
     const properties: Property[] = [];
