@@ -1,6 +1,7 @@
 import type { Property } from "../../models/property.js";
 import { BaseScraper } from "../base.scraper.js";
 import { logger } from "../../utils/logger.js";
+import { fetchPageWithCookies } from "../../utils/http.js";
 import {
   parseCapitalListing,
   parseCapitalDetail,
@@ -10,12 +11,16 @@ import {
 const BASE_URL = "https://capital-leiloeira.pt";
 const LISTING_PATH = "/index.php?page=bem_list&natureza=IMOVEL";
 
+// The site's WAF returns 503 for any Accept-Encoding other than "identity" (plain axios defaults are blocked)
+const CAPITAL_HEADERS = { "Accept-Encoding": "identity" };
+
 export class CapitalScraper extends BaseScraper {
   readonly source = "capital";
 
   protected override readonly DETAIL_DELAY_MS = 1500;
 
   private listingItems = new Map<string, ListingItem>();
+  private cookieStr: string | undefined;
 
   protected async collectListings(): Promise<Property[]> {
     const allItems: ListingItem[] = [];
@@ -25,7 +30,12 @@ export class CapitalScraper extends BaseScraper {
     const firstUrl = `${BASE_URL}${LISTING_PATH}`;
     logger.info(`[${this.source}] Fetching listing page 1: ${firstUrl}`);
 
-    const firstHtml = await this.fetchPage(firstUrl);
+    const { html: firstHtml, cookies } = await fetchPageWithCookies(
+      firstUrl,
+      undefined,
+      CAPITAL_HEADERS
+    );
+    this.cookieStr = cookies || undefined;
     const { items: firstItems, totalPages: detected } =
       parseCapitalListing(firstHtml);
     totalPages = detected;
@@ -49,7 +59,7 @@ export class CapitalScraper extends BaseScraper {
           `[${this.source}] Fetching listing page ${page}/${totalPages}`
         );
 
-        const html = await this.fetchPage(pageUrl);
+        const html = await this.fetchPage(pageUrl, this.cookieStr, CAPITAL_HEADERS);
         const { items } = parseCapitalListing(html);
 
         if (items.length === 0) {
@@ -86,7 +96,7 @@ export class CapitalScraper extends BaseScraper {
       return base;
     }
 
-    const html = await this.fetchPage(base.url);
+    const html = await this.fetchPage(base.url, this.cookieStr, CAPITAL_HEADERS);
     const enriched = parseCapitalDetail(html, listing);
 
     return {

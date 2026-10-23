@@ -62,6 +62,17 @@ function isRetryableError(error: unknown): boolean {
   return error.code !== undefined && RETRYABLE_ERROR_CODES.has(error.code);
 }
 
+function buildHeaders(
+  cookieStr?: string,
+  extraHeaders?: Record<string, string>
+): Record<string, string> {
+  const headers: Record<string, string> = { ...DEFAULT_HEADERS, ...extraHeaders };
+  if (cookieStr) {
+    headers.Cookie = cookieStr;
+  }
+  return headers;
+}
+
 async function requestWithRetry<T>(
   requestConfig: AxiosRequestConfig,
   url: string
@@ -83,10 +94,12 @@ async function requestWithRetry<T>(
   }
 }
 
-export async function fetchPage(url: string, cookieStr?: string): Promise<string> {
-  const headers = cookieStr
-    ? { ...DEFAULT_HEADERS, Cookie: cookieStr }
-    : DEFAULT_HEADERS;
+export async function fetchPage(
+  url: string,
+  cookieStr?: string,
+  extraHeaders?: Record<string, string>
+): Promise<string> {
+  const headers = buildHeaders(cookieStr, extraHeaders);
   const response = await requestWithRetry<string>(
     {
       url,
@@ -102,11 +115,10 @@ export async function fetchPage(url: string, cookieStr?: string): Promise<string
 // Used when a site needs session cookies (avaliberica.pt requires the PHPSESSID from the listing page)
 export async function fetchPageWithCookies(
   url: string,
-  cookieStr?: string
+  cookieStr?: string,
+  extraHeaders?: Record<string, string>
 ): Promise<{ html: string; cookies: string }> {
-  const headers = cookieStr
-    ? { ...DEFAULT_HEADERS, Cookie: cookieStr }
-    : DEFAULT_HEADERS;
+  const headers = buildHeaders(cookieStr, extraHeaders);
   const response = await requestWithRetry<string>(
     {
       url,
